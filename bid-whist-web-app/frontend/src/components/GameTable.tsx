@@ -205,7 +205,8 @@ export default function GameTable({
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <div className="font-bold" style={{ color: '#ffffff' }}>
+                            <div className="font-bold" style={{ color: hand.playerName?.toLowerCase() === 'faye' ? '#c4b5fd' : '#fbbf24' }}>
+                              {hand.playerName?.toLowerCase() === 'faye' && '💜 '}
                               {hand.playerName} — Hand {parseInt(hand.handIndex) + 1}
                               {isMine && <span className="text-yellow-300 ml-2">(You)</span>}
                             </div>
@@ -278,7 +279,8 @@ export default function GameTable({
                   {/* Current Bidder */}
                   <div className="text-center">
                     <div className="text-xl" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>Current Bidder:</div>
-                    <div className="text-3xl font-bold text-yellow-400">
+                    <div className="text-3xl font-bold" style={{ color: currentBidder?.playerName?.toLowerCase() === 'faye' ? '#c4b5fd' : '#fbbf24' }}>
+                      {currentBidder?.playerName?.toLowerCase() === 'faye' && '💜 '}
                       {currentBidder?.playerName} - Hand {parseInt(currentBidder?.handIndex) + 1}
                       {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
                     </div>
@@ -338,7 +340,8 @@ export default function GameTable({
                               key={idx}
                               className="p-3 bg-white/10 rounded border border-white/30"
                             >
-                              <span className="font-bold" style={{ color: '#ffffff' }}>
+                              <span className="font-bold" style={{ color: hand?.playerName?.toLowerCase() === 'faye' ? '#c4b5fd' : '#fbbf24' }}>
+                                {hand?.playerName?.toLowerCase() === 'faye' && '💜 '}
                                 {hand?.playerName} - Hand {parseInt(hand?.handIndex) + 1}:
                               </span>
                               <span className={`ml-2 ${bid.amount === "pass" ? "text-red-400" : "text-green-400"}`}>
