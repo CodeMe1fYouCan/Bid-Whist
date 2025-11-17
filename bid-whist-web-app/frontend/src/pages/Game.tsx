@@ -29,6 +29,10 @@ const Game = () => {
   const [currentTrick, setCurrentTrick] = useState<any[]>([]);
   const [tricksWon, setTricksWon] = useState<Record<string, number>>({ Us: 0, Them: 0 });
   const [trickNumber, setTrickNumber] = useState<number>(1);
+  const [trickWinnerHandId, setTrickWinnerHandId] = useState<string | null>(null);
+  const [showTrickComplete, setShowTrickComplete] = useState(false);
+  const [lastTrick, setLastTrick] = useState<any[]>([]);
+  const [lastTrickWinner, setLastTrickWinner] = useState<string | null>(null);
   
   const joinedRef = useRef(false);
 
@@ -90,16 +94,35 @@ const Game = () => {
     }
     
     if (data.type === "CARD_PLAYED") {
+      console.log("📥 CARD_PLAYED received:", data);
       if (data.playedCards) {
+        console.log("   Setting currentTrick to:", data.playedCards);
         setCurrentTrick(data.playedCards);
+      } else {
+        console.log("   ⚠️ No playedCards in message!");
       }
     }
     
     if (data.type === "TRICK_COMPLETE") {
-      // Show trick winner briefly, then clear
+      // Show all 4 cards with winner highlighted
+      setTrickWinnerHandId(data.winnerHandId);
+      setShowTrickComplete(true);
+      
+      // Save this trick as the last trick before clearing
+      const completedTrick = [...currentTrick];
+      
+      // After animation, clear the trick and save to last trick
       setTimeout(() => {
+        setLastTrick(completedTrick);
+        setLastTrickWinner(data.winnerHandId);
         setCurrentTrick([]);
-      }, 2000);
+        setTrickWinnerHandId(null);
+        setShowTrickComplete(false);
+      }, 2500);
+    }
+    
+    if (data.type === "PLAY_ERROR") {
+      alert(data.message || "Invalid play!");
     }
     
     if (data.type === "DEALER_GUESS_UPDATE") {
@@ -153,6 +176,7 @@ const Game = () => {
 
   const handleCardPlay = (handId: string, card: any) => {
     console.log(`📤 Playing card: handId=${handId}, card=`, card);
+    console.log(`   Current trick before play:`, currentTrick);
     sendMessage(JSON.stringify({ type: "PLAY_CARD", handId, card }));
   };
 
@@ -241,6 +265,10 @@ const Game = () => {
         tricksWon={tricksWon}
         trickNumber={trickNumber}
         handleCardPlay={handleCardPlay}
+        trickWinnerHandId={trickWinnerHandId}
+        showTrickComplete={showTrickComplete}
+        lastTrick={lastTrick}
+        lastTrickWinner={lastTrickWinner}
       />
       
       {phase === "DEALING" && (

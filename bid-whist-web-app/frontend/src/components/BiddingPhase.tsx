@@ -7,6 +7,7 @@ interface BiddingPhaseProps {
   highestBid: number;
   currentUserId: string | null;
   handleBid: (handId: string, bidAmount: number | string) => void;
+  dealerIndex?: number;
 }
 
 export default function BiddingPhase({
@@ -16,6 +17,7 @@ export default function BiddingPhase({
   highestBid,
   currentUserId,
   handleBid,
+  dealerIndex = 0,
 }: BiddingPhaseProps) {
   const [bidInput, setBidInput] = useState<string>("");
 
@@ -27,7 +29,11 @@ export default function BiddingPhase({
   const currentHandId = `${currentBidder?.playerId}_hand_${currentBidder?.handIndex}`;
   const isMyTurn = currentBidder?.playerId === currentUserId;
 
-  const minBid = highestBid + 1;
+  // Check if current bidder is the dealer
+  const isDealer = currentBidderIndex === dealerIndex;
+  
+  // Dealer can match the highest bid, others must bid higher
+  const minBid = isDealer && highestBid > 0 ? highestBid : (highestBid + 1);
   const bidValue = parseInt(bidInput);
   const canBid = bidValue >= minBid && bidValue <= 7;
 
@@ -54,6 +60,7 @@ export default function BiddingPhase({
             <div className="text-lg font-bold">Your Turn to Bid</div>
             <div className="text-sm text-gray-300">
               Minimum bid: {minBid} (Range: 1-7)
+              {isDealer && highestBid > 0 && <span className="ml-2 text-green-400">👑 Dealer can match!</span>}
             </div>
           </div>
           

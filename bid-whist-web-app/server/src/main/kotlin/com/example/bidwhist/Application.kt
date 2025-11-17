@@ -297,15 +297,14 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
     
     bids.add(bidEntry)
     
-    // Check if bidding is complete - need at least 4 bids AND only 1 active bidder remaining
-    val activeBidders = (0..3).filter { it !in passedPlayers }
-    val allHandsHaveBid = bids.size >= 4
+    // Check if bidding is complete
     val currentHighestBid = gameState["highestBid"] as? Int ?: 0
     
-    println("📊 Bidding status: bids=${bids.size}, activeBidders=${activeBidders.size}, passedPlayers=$passedPlayers")
-    println("   allHandsHaveBid=$allHandsHaveBid, highestBid=$currentHighestBid")
+    println("📊 Bidding status: bids=${bids.size}/4")
+    println("   highestBid=$currentHighestBid")
     
-    if (allHandsHaveBid && activeBidders.size == 1) {
+    // Bidding ends when all 4 players have bid once
+    if (bids.size == 4) {
         // Bidding complete
         println("✅ Bidding complete!")
         
@@ -416,17 +415,52 @@ suspend fun handleTrumpSelection(room: RoomState, trumpSuit: String, objectMappe
 }
 
 suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, String>, objectMapper: ObjectMapper) {
+    println("🃏 handleCardPlay: handId=$handId, card=$card")
     val gameState = room.gameState ?: return
     val handAssignments = gameState["handAssignments"] as? List<Map<String, String>> ?: return
     val currentPlayerIndex = gameState["currentPlayerIndex"] as? Int ?: return
     val currentTrick = gameState["currentTrick"] as? MutableMap<String, Any> ?: return
     val playedCards = currentTrick["playedCards"] as? MutableList<Map<String, Any>> ?: return
+    val playerHands = gameState["playerHands"] as? MutableMap<String, List<Map<String, String>>> ?: return
     
     val playerIndex = handAssignments.indexOfFirst { 
         "${it["playerId"]}_hand_${it["handIndex"]}" == handId 
     }
     
-    if (playerIndex != currentPlayerIndex) return
+    println("   playerIndex=$playerIndex, currentPlayerIndex=$currentPlayerIndex")
+    
+    if (playerIndex != currentPlayerIndex) {
+        println("   ❌ Not this player's turn!")
+        return
+    }
+    
+    // Get player's current hand
+    val currentHand = playerHands[handId]?.toMutableList() ?: mutableListOf()
+    
+    // Validate the play - must follow suit if possible
+    val leadSuit = currentTrick["leadSuit"] as? String
+    if (leadSuit != null && playedCards.isNotEmpty()) {
+        // Check if player has cards in the lead suit
+        val hasLeadSuit = currentHand.any { it["suit"] == leadSuit }
+        val playedCardSuit = card["suit"]
+        
+        if (hasLeadSuit && playedCardSuit != leadSuit) {
+            println("   ❌ Must follow suit! Lead suit is $leadSuit but played $playedCardSuit")
+            // Send error message back to client
+            val errorMessage = objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "PLAY_ERROR",
+                    "message" to "You must follow suit! Lead suit is $leadSuit"
+                )
+            )
+            room.connections[handAssignments[playerIndex]["playerId"]]?.send(Frame.Text(errorMessage))
+            return
+        }
+    }
+    
+    // Remove card from player's hand
+    currentHand.removeIf { it["suit"] == card["suit"] && it["rank"] == card["rank"] }
+    playerHands[handId] = currentHand
     
     // Add card to trick
     playedCards.add(mapOf(
@@ -434,6 +468,8 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
         "handIndex" to playerIndex,
         "card" to card
     ))
+    
+    println("   ✅ Card played! playedCards.size=${playedCards.size}")
     
     // Set lead suit if first card
     if (playedCards.size == 1) {
@@ -491,22 +527,27 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
         }
     } else {
         // Move to next player
-        gameState["currentPlayerIndex"] = (currentPlayerIndex + 1) % 4
+        val nextPlayerIndex = (currentPlayerIndex + 1) % 4
+        gameState["currentPlayerIndex"] = nextPlayerIndex
+        
+        println("   📤 Moving to next player: $nextPlayerIndex")
         
         val cardPlayedMessage = objectMapper.writeValueAsString(
             mapOf(
                 "type" to "CARD_PLAYED",
                 "handId" to handId,
                 "card" to card,
-                "currentPlayerIndex" to ((currentPlayerIndex + 1) % 4),
-                "playedCards" to playedCards
+                "currentPlayerIndex" to nextPlayerIndex,
+                "playedCards" to playedCards,
+                "playerHands" to playerHands
             )
         )
         room.connections.values.forEach { session ->
             try {
                 session.send(Frame.Text(cardPlayedMessage))
+                println("   ✓ Sent CARD_PLAYED to connection")
             } catch (e: Exception) {
-                println("Error sending card played: ${e.message}")
+                println("   ✗ Error sending card played: ${e.message}")
             }
         }
     }

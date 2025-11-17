@@ -21,6 +21,10 @@ interface GameTableProps {
   tricksWon?: Record<string, number>;
   trickNumber?: number;
   handleCardPlay?: (handId: string, card: any) => void;
+  trickWinnerHandId?: string | null;
+  showTrickComplete?: boolean;
+  lastTrick?: any[];
+  lastTrickWinner?: string | null;
 }
 
 export default function GameTable({
@@ -43,6 +47,10 @@ export default function GameTable({
   tricksWon = { Us: 0, Them: 0 },
   trickNumber = 1,
   handleCardPlay,
+  trickWinnerHandId = null,
+  showTrickComplete = false,
+  lastTrick = [],
+  lastTrickWinner = null,
 }: GameTableProps) {
   const showCards = phase === "BIDDING" || phase === "PLAYING" || phase === "TRUMP_SELECTION";
   const [bidInput, setBidInput] = React.useState<string>("");
@@ -68,12 +76,18 @@ export default function GameTable({
     }
   } else if (phase === "PLAYING" && handAssignments.length > 0) {
     const currentHand = handAssignments[currentPlayerIndex];
+    console.log("🎮 PLAYING phase - currentPlayerIndex:", currentPlayerIndex, "currentHand:", currentHand);
     if (currentHand && currentHand.playerId === currentUserId) {
-      // Find which of my hands is currently active
+      // Find which of my hands is currently active based on the global currentPlayerIndex
+      // handIndex is a string, so convert for comparison
       activeHandIndex = myHandAssignments.findIndex(
-        (h: any) => h.handIndex === currentHand.handIndex
+        (h: any) => h.playerId === currentHand.playerId && String(h.handIndex) === String(currentHand.handIndex)
       );
-      if (activeHandIndex === -1) activeHandIndex = 0;
+      console.log("   Found activeHandIndex:", activeHandIndex, "in myHandAssignments:", myHandAssignments);
+      if (activeHandIndex === -1) {
+        console.log("   ⚠️ Could not find matching hand, defaulting to 0");
+        activeHandIndex = 0;
+      }
     }
   }
 
@@ -85,9 +99,9 @@ export default function GameTable({
     myCards.push(...(playerHands[activeHandId] || []));
   }
 
-  // Sort cards by suit and rank (default order) - maintain separate sorted state per hand
+  // Sort cards by suit and rank (default order) - update when playerHands changes
   React.useEffect(() => {
-    if (myCards.length > 0 && activeHandId && !sortedCards[activeHandId]) {
+    if (myCards.length > 0 && activeHandId) {
       const suitOrder = { hearts: 0, spades: 1, diamonds: 2, clubs: 3 };
       const rankOrder = { 'A': 13, 'K': 12, 'Q': 11, 'J': 10, '10': 9, '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1 };
       
@@ -98,6 +112,9 @@ export default function GameTable({
       });
       
       setSortedCards(prev => ({ ...prev, [activeHandId]: sorted }));
+    } else if (myCards.length === 0 && activeHandId) {
+      // Clear sorted cards when hand is empty
+      setSortedCards(prev => ({ ...prev, [activeHandId]: [] }));
     }
   }, [myCards.length, activeHandId, playerHands]);
 
@@ -107,23 +124,27 @@ export default function GameTable({
   const isMyTurnToPlay = phase === "PLAYING" && handAssignments.length > 0 && 
     handAssignments[currentPlayerIndex]?.playerId === currentUserId;
 
-  // Handle card click during playing phase
-  const handleCardClick = (card: any) => {
+  // Handle double-click to play card during playing phase
+  const handleCardDoubleClick = (card: any) => {
     if (phase === "PLAYING" && isMyTurnToPlay && handleCardPlay && activeHandId) {
+      console.log("🎴 Playing card:", {
+        activeHandId,
+        activeHand,
+        currentPlayerIndex,
+        handAssignments,
+        card
+      });
       handleCardPlay(activeHandId, card);
-      // Remove card from local display
-      if (sortedCards[activeHandId]) {
-        const newCards = sortedCards[activeHandId].filter(
-          (c: any) => !(c.suit === card.suit && c.rank === card.rank)
-        );
-        setSortedCards(prev => ({ ...prev, [activeHandId]: newCards }));
-      }
+      // Don't remove locally - wait for server to send updated playerHands
     }
   };
 
   // Drag and drop handlers
-  const handleDragStart = (index: number) => {
+  const [draggedCard, setDraggedCard] = React.useState<any>(null);
+
+  const handleDragStart = (index: number, card: any) => {
     setDraggedIndex(index);
+    setDraggedCard(card);
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -131,9 +152,9 @@ export default function GameTable({
     if (draggedIndex === null || draggedIndex === index || !activeHandId) return;
     
     const newCards = [...displayCards];
-    const draggedCard = newCards[draggedIndex];
+    const draggedCardData = newCards[draggedIndex];
     newCards.splice(draggedIndex, 1);
-    newCards.splice(index, 0, draggedCard);
+    newCards.splice(index, 0, draggedCardData);
     
     setSortedCards(prev => ({ ...prev, [activeHandId]: newCards }));
     setDraggedIndex(index);
@@ -141,11 +162,24 @@ export default function GameTable({
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
+    setDraggedCard(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDraggedIndex(null);
+    setDraggedCard(null);
+  };
+
+  // Handle drop on center to play card
+  const handleDropOnCenter = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (phase === "PLAYING" && isMyTurnToPlay && draggedCard && handleCardPlay && activeHandId) {
+      handleCardPlay(activeHandId, draggedCard);
+      // Don't remove locally - wait for server to send updated playerHands
+    }
+    setDraggedIndex(null);
+    setDraggedCard(null);
   };
 
   /** Helper to get player name by position */
@@ -215,19 +249,23 @@ export default function GameTable({
               displayCards.map((card: any, idx: number) => (
                 <div 
                   key={`${card.suit}-${card.rank}-${idx}`} 
-                  className={`-ml-6 first:ml-0 ${phase === "PLAYING" ? (isMyTurnToPlay ? "cursor-pointer hover:scale-110 hover:-translate-y-2 transition-transform" : "cursor-not-allowed opacity-70") : "cursor-move"}`}
-                  draggable={phase !== "PLAYING"}
-                  onDragStart={() => phase !== "PLAYING" && handleDragStart(idx)}
-                  onDragOver={(e: React.DragEvent) => phase !== "PLAYING" && handleDragOver(e, idx)}
-                  onDragEnd={() => phase !== "PLAYING" && handleDragEnd()}
-                  onDrop={(e: React.DragEvent) => phase !== "PLAYING" && handleDrop(e)}
-                  onClick={() => handleCardClick(card)}
+                  className={`cursor-move ${phase === "PLAYING" && !isMyTurnToPlay ? "opacity-70" : ""}`}
+                  draggable={true}
+                  onDragStart={() => handleDragStart(idx, card)}
+                  onDragOver={(e: React.DragEvent) => handleDragOver(e, idx)}
+                  onDragEnd={() => handleDragEnd()}
+                  onDrop={(e: React.DragEvent) => handleDrop(e)}
+                  onDoubleClick={() => handleCardDoubleClick(card)}
                   style={{ 
+                    marginLeft: idx === 0 ? 0 : '-30px',
                     opacity: draggedIndex === idx ? 0.5 : 1,
-                    transition: 'all 0.2s'
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    zIndex: idx,
+                    filter: phase === "PLAYING" && isMyTurnToPlay ? 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)) brightness(1.1)' : 'none'
                   }}
                 >
-                  <Card suit={card.suit} rank={card.rank} faceUp width={60} height={90} />
+                  <Card suit={card.suit} rank={card.rank} faceUp width={80} height={120} />
                 </div>
               ))
             ) : (
@@ -242,55 +280,126 @@ export default function GameTable({
 
         {/* ACROSS (Top) */}
         <div className="absolute top-[2vh] left-1/2 -translate-x-1/2 flex flex-col items-center text-white">
-          <div className="text-2xl font-bold mb-2" style={{ color: '#ffffff' }}>{getPlayerName("ACROSS")}</div>
+          <div className="text-2xl font-bold mb-2" style={{ color: '#ffffff' }}>
+            {getPlayerName("ACROSS")}
+            {phase === "PLAYING" && handAssignments.length > 0 && (() => {
+              const activeHandGlobalIndex = activeHand 
+                ? handAssignments.findIndex((h: any) => 
+                    h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+                  )
+                : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
+              const acrossIndex = (activeHandGlobalIndex + 2) % 4;
+              return acrossIndex === currentPlayerIndex && (
+                <span className="ml-2 text-yellow-300 animate-pulse">👈</span>
+              );
+            })()}
+          </div>
 
-          {showCards && (
-            <div className="flex">
-              {Array.from({ length: 13 }).map((_, i) => (
-                <div key={i} className="-ml-10 first:ml-0"> 
-                  <Card faceUp={false} width={60} height={90} />
-                </div>
-              ))}
-            </div>
-          )}
+          {showCards && (() => {
+            const activeHandGlobalIndex = activeHand 
+              ? handAssignments.findIndex((h: any) => 
+                  h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+                )
+              : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
+            const acrossIndex = (activeHandGlobalIndex + 2) % 4;
+            const acrossHand = handAssignments[acrossIndex];
+            const acrossHandId = acrossHand ? `${acrossHand.playerId}_hand_${acrossHand.handIndex}` : "";
+            const cardCount = playerHands[acrossHandId]?.length || 13;
+            
+            return (
+              <div className="flex">
+                {Array.from({ length: cardCount }).map((_, i) => (
+                  <div key={i} className="-ml-10 first:ml-0"> 
+                    <Card faceUp={false} width={60} height={90} />
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* LEFT */}
         <div className="absolute left-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
           <div className="text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: '#ffffff' }}>
             {getPlayerName("LEFT")}
+            {phase === "PLAYING" && handAssignments.length > 0 && (() => {
+              const activeHandGlobalIndex = activeHand 
+                ? handAssignments.findIndex((h: any) => 
+                    h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+                  )
+                : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
+              const leftIndex = (activeHandGlobalIndex + 1) % 4;
+              return leftIndex === currentPlayerIndex && (
+                <span className="ml-2 text-yellow-300 animate-pulse">👈</span>
+              );
+            })()}
           </div>
 
-          {showCards && (
-            <div className="flex flex-col items-center">
-              {Array.from({ length: 13 }).map((_, i) => (
-                <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}> 
-                  <div className="transform -rotate-90">
-                    <Card faceUp={false} width={60} height={90} />
+          {showCards && (() => {
+            const activeHandGlobalIndex = activeHand 
+              ? handAssignments.findIndex((h: any) => 
+                  h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+                )
+              : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
+            const leftIndex = (activeHandGlobalIndex + 1) % 4;
+            const leftHand = handAssignments[leftIndex];
+            const leftHandId = leftHand ? `${leftHand.playerId}_hand_${leftHand.handIndex}` : "";
+            const cardCount = playerHands[leftHandId]?.length || 13;
+            
+            return (
+              <div className="flex flex-col items-center">
+                {Array.from({ length: cardCount }).map((_, i) => (
+                  <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}> 
+                    <div className="transform -rotate-90">
+                      <Card faceUp={false} width={60} height={90} />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* RIGHT */}
         <div className="absolute right-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
           <div className="text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: '#ffffff' }}>
             {getPlayerName("RIGHT")}
+            {phase === "PLAYING" && handAssignments.length > 0 && (() => {
+              const activeHandGlobalIndex = activeHand 
+                ? handAssignments.findIndex((h: any) => 
+                    h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+                  )
+                : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
+              const rightIndex = (activeHandGlobalIndex + 3) % 4;
+              return rightIndex === currentPlayerIndex && (
+                <span className="ml-2 text-yellow-300 animate-pulse">👈</span>
+              );
+            })()}
           </div>
 
-          {showCards && (
-            <div className="flex flex-col items-center">
-              {Array.from({ length: 13 }).map((_, i) => (
-                <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}>
-                  <div className="transform rotate-90">
-                    <Card faceUp={false} width={60} height={90} />
+          {showCards && (() => {
+            const activeHandGlobalIndex = activeHand 
+              ? handAssignments.findIndex((h: any) => 
+                  h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+                )
+              : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
+            const rightIndex = (activeHandGlobalIndex + 3) % 4;
+            const rightHand = handAssignments[rightIndex];
+            const rightHandId = rightHand ? `${rightHand.playerId}_hand_${rightHand.handIndex}` : "";
+            const cardCount = playerHands[rightHandId]?.length || 13;
+            
+            return (
+              <div className="flex flex-col items-center">
+                {Array.from({ length: cardCount }).map((_, i) => (
+                  <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}>
+                    <div className="transform rotate-90">
+                      <Card faceUp={false} width={60} height={90} />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* PLAYING PHASE INFO */}
@@ -320,9 +429,55 @@ export default function GameTable({
               </div>
             </div>
 
+            {/* Last Trick - to the right of trick info */}
+            {lastTrick.length === 4 && (
+              <div className="absolute bg-black/80 px-4 py-3 rounded-lg border-2 border-white/30 z-20" style={{ bottom: '2vh', right: '2vw', color: '#ffffff' }}>
+                <div className="text-sm mb-2 text-center" style={{ opacity: 0.7 }}>Last Trick</div>
+                <div className="flex gap-1">
+                  {lastTrick.map((play: any, idx: number) => {
+                    const isWinner = play.handId === lastTrickWinner;
+                    return (
+                      <div 
+                        key={idx}
+                        style={{
+                          filter: isWinner ? 'drop-shadow(0 0 4px rgba(251, 191, 36, 0.8))' : 'none',
+                          opacity: isWinner ? 1 : 0.7
+                        }}
+                      >
+                        <Card 
+                          suit={play.card.suit} 
+                          rank={play.card.rank} 
+                          faceUp 
+                          width={35} 
+                          height={52} 
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Played cards in center */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="relative w-96 h-96">
+              <div 
+                className="relative w-96 h-96 pointer-events-auto flex items-center justify-center"
+                onDragOver={(e: React.DragEvent) => e.preventDefault()}
+                onDrop={handleDropOnCenter}
+              >
+                {/* Meow Meow Publishing Logo - shows when no cards played */}
+                {currentTrick.length === 0 && (
+                  <div className="text-center" style={{ opacity: 0.25 }}>
+                    <div style={{ fontSize: '8rem', marginBottom: '1rem' }}>🐱</div>
+                    <div className="font-bold" style={{ fontSize: '4rem', color: '#ffffff', fontFamily: 'serif', lineHeight: 1 }}>
+                      Meow Meow
+                    </div>
+                    <div style={{ fontSize: '2.5rem', color: '#ffffff', fontFamily: 'serif', marginTop: '0.5rem' }}>
+                      Publishing
+                    </div>
+                  </div>
+                )}
+                
                 {currentTrick.map((play: any, idx: number) => {
                   // Position cards in a diamond pattern: bottom, left, top, right
                   const positions = [
@@ -333,11 +488,29 @@ export default function GameTable({
                   ];
                   const pos = positions[play.handIndex] || positions[0];
                   
+                  const isWinner = showTrickComplete && play.handId === trickWinnerHandId;
+                  
+                  // Calculate position to move towards winner
+                  let animateToPos = pos;
+                  if (showTrickComplete && trickWinnerHandId) {
+                    const winnerPlay = currentTrick.find((p: any) => p.handId === trickWinnerHandId);
+                    if (winnerPlay) {
+                      const winnerPos = positions[winnerPlay.handIndex];
+                      animateToPos = winnerPos;
+                    }
+                  }
+                  
                   return (
                     <div
                       key={idx}
-                      className="absolute"
-                      style={pos}
+                      className="absolute transition-all duration-1000"
+                      style={{
+                        ...pos,
+                        ...(showTrickComplete ? animateToPos : {}),
+                        filter: isWinner ? 'drop-shadow(0 0 15px rgba(251, 191, 36, 1)) brightness(1.3)' : 'none',
+                        transform: `${pos.transform || ''} ${isWinner ? 'scale(1.1)' : 'scale(1)'}`,
+                        zIndex: isWinner ? 10 : 1
+                      }}
                     >
                       <Card 
                         suit={play.card.suit} 
