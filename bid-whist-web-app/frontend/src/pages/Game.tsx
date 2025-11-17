@@ -142,9 +142,13 @@ const Game = () => {
     }
 
     return (
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+      <div className="fixed inset-0 flex items-center justify-center z-50" style={{ pointerEvents: 'none' }}>
         <motion.div
-          className="pointer-events-auto bg-black/80 text-white p-8 rounded-3xl shadow-2xl backdrop-blur-md"
+          className="bg-black text-white p-8 rounded-3xl shadow-2xl max-w-4xl max-h-[90vh] overflow-y-auto"
+          style={{ 
+            pointerEvents: 'auto',
+            backgroundColor: 'rgba(0, 0, 0, 0.95)'
+          }}
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.92 }}
@@ -162,9 +166,21 @@ const Game = () => {
         playerHands={playerHands}
         currentUserId={currentUserId}
         phase={phase}
+        dealerGuesses={dealerGuesses}
+        guessInput={guessInput}
+        setGuessInput={setGuessInput}
+        handleGuessSubmit={handleGuessSubmit}
+        currentBidderIndex={currentBidderIndex}
+        bids={bids}
+        highestBid={highestBid}
+        handleBid={handleBid}
       />
       
-      <AnimatePresence>{renderPhaseOverlay()}</AnimatePresence>
+      {phase === "DEALING" && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="text-2xl text-white">Dealing Cards…</div>
+        </div>
+      )}
     </>
   );
 };
