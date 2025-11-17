@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import useWebSocket from "../hooks/useWebSocket";
 import DealerSelection from "../components/DealerSelection";
 import BiddingPhase from "../components/BiddingPhase";
+import TrumpSelection from "../components/TrumpSelection";
 import GameTable from "../components/GameTable";
 
 const Game = () => {
@@ -20,6 +21,14 @@ const Game = () => {
   const [currentBidderIndex, setCurrentBidderIndex] = useState<number>(0);
   const [bids, setBids] = useState<any[]>([]);
   const [highestBid, setHighestBid] = useState<number>(0);
+  const [bidWinnerHandId, setBidWinnerHandId] = useState<string>("");
+  const [bidWinnerIndex, setBidWinnerIndex] = useState<number>(0);
+  const [winningBid, setWinningBid] = useState<number>(0);
+  const [trumpSuit, setTrumpSuit] = useState<string>("");
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState<number>(0);
+  const [currentTrick, setCurrentTrick] = useState<any[]>([]);
+  const [tricksWon, setTricksWon] = useState<Record<string, number>>({ Us: 0, Them: 0 });
+  const [trickNumber, setTrickNumber] = useState<number>(1);
   
   const joinedRef = useRef(false);
 
@@ -68,6 +77,30 @@ const Game = () => {
     if (data.currentBidderIndex !== undefined) setCurrentBidderIndex(data.currentBidderIndex);
     if (data.bids) setBids(data.bids);
     if (data.highestBid !== undefined) setHighestBid(data.highestBid);
+    if (data.bidWinnerHandId) setBidWinnerHandId(data.bidWinnerHandId);
+    if (data.bidWinnerIndex !== undefined) setBidWinnerIndex(data.bidWinnerIndex);
+    if (data.winningBid !== undefined) setWinningBid(data.winningBid);
+    if (data.trumpSuit) setTrumpSuit(data.trumpSuit);
+    if (data.currentPlayerIndex !== undefined) setCurrentPlayerIndex(data.currentPlayerIndex);
+    if (data.tricksWon) setTricksWon(data.tricksWon);
+    if (data.trickNumber !== undefined) setTrickNumber(data.trickNumber);
+    
+    if (data.type === "PLAYING_PHASE") {
+      setCurrentTrick([]);
+    }
+    
+    if (data.type === "CARD_PLAYED") {
+      if (data.playedCards) {
+        setCurrentTrick(data.playedCards);
+      }
+    }
+    
+    if (data.type === "TRICK_COMPLETE") {
+      // Show trick winner briefly, then clear
+      setTimeout(() => {
+        setCurrentTrick([]);
+      }, 2000);
+    }
     
     if (data.type === "DEALER_GUESS_UPDATE") {
       setDealerGuesses(data.guesses || {});
@@ -113,6 +146,16 @@ const Game = () => {
     sendMessage(JSON.stringify({ type: "PLACE_BID", handId, bidAmount }));
   };
 
+  const handleTrumpSelection = (trumpSuit: string) => {
+    console.log(`📤 Selecting trump: ${trumpSuit}`);
+    sendMessage(JSON.stringify({ type: "SELECT_TRUMP", trumpSuit }));
+  };
+
+  const handleCardPlay = (handId: string, card: any) => {
+    console.log(`📤 Playing card: handId=${handId}, card=`, card);
+    sendMessage(JSON.stringify({ type: "PLAY_CARD", handId, card }));
+  };
+
   // Render phase-specific overlay
   const renderPhaseOverlay = () => {
     if (phase === "PLAYING") return null;
@@ -139,6 +182,17 @@ const Game = () => {
           highestBid={highestBid}
           currentUserId={currentUserId}
           handleBid={handleBid}
+        />
+      );
+    } else if (phase === "TRUMP_SELECTION") {
+      content = (
+        <TrumpSelection
+          bidWinnerHandId={bidWinnerHandId}
+          bidWinnerIndex={bidWinnerIndex}
+          winningBid={winningBid}
+          handAssignments={handAssignments}
+          currentUserId={currentUserId}
+          handleTrumpSelection={handleTrumpSelection}
         />
       );
     } else if (phase === "DEALING") {
@@ -180,6 +234,13 @@ const Game = () => {
         bids={bids}
         highestBid={highestBid}
         handleBid={handleBid}
+        handleTrumpSelection={handleTrumpSelection}
+        trumpSuit={trumpSuit}
+        currentPlayerIndex={currentPlayerIndex}
+        currentTrick={currentTrick}
+        tricksWon={tricksWon}
+        trickNumber={trickNumber}
+        handleCardPlay={handleCardPlay}
       />
       
       {phase === "DEALING" && (

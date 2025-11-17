@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 interface CardProps {
     suit: 'hearts' | 'diamonds' | 'clubs' | 'spades';
-    rank: string; // '2'–'10', 'J', 'Q', 'K', 'A'
+    rank: string; // '2'–'10', 'J', 'Q', 'K', 'A', 'NO_TRUMP'
     faceUp?: boolean;
     width?: number;
     height?: number;
@@ -22,11 +22,14 @@ const Card: React.FC<CardProps> = ({
     isPlayable = true,
 }) => {
     const [imageError, setImageError] = useState(false);
-    const cardKey = `${rank}_of_${suit}`;
+    
+    // Special handling for no-trump card
+    const isNoTrump = rank === 'NO_TRUMP';
+    const cardKey = isNoTrump ? 'no_trump' : `${rank}_of_${suit}`;
     const imgSrc = faceUp ? `/cards/${cardKey}.svg` : `/cards/back.svg`;
 
-    // Check if this card has an SVG (J, Q, K have SVGs, and back.svg for face-down)
-    const hasSvg = !faceUp || ['J', 'Q', 'K'].includes(rank);
+    // Check if this card has an SVG (J, Q, K have SVGs, no_trump, and back.svg for face-down)
+    const hasSvg = !faceUp || ['J', 'Q', 'K'].includes(rank) || isNoTrump;
 
     // Suit symbols
     const suitSymbols = {
@@ -49,7 +52,7 @@ const Card: React.FC<CardProps> = ({
             style={{
                 width,
                 height,
-                backgroundColor: faceUp ? '#ffffff' : '#1e40af',
+                backgroundColor: faceUp ? '#f5f1e3' : '#1e40af',
                 borderRadius: '8px',
                 border: '2px solid #333',
                 boxShadow: isSelected
@@ -70,23 +73,23 @@ const Card: React.FC<CardProps> = ({
                     <div
                         style={{
                             position: 'absolute',
-                            top: '8px',
-                            left: '8px',
-                            fontSize: '16px',
+                            top: '6px',
+                            left: '6px',
+                            fontSize: '18px',
                             fontWeight: 'bold',
                             color: suitColors[suit],
-                            lineHeight: 1,
+                            lineHeight: 0.9,
                             textAlign: 'center',
                         }}
                     >
                         <div>{rank}</div>
-                        <div style={{ fontSize: '14px' }}>{suitSymbols[suit]}</div>
+                        <div style={{ fontSize: '18px', marginTop: '2px' }}>{suitSymbols[suit]}</div>
                     </div>
 
                     {/* Center symbol */}
                     <div
                         style={{
-                            fontSize: '32px',
+                            fontSize: '42px',
                             color: suitColors[suit],
                         }}
                     >
@@ -97,18 +100,18 @@ const Card: React.FC<CardProps> = ({
                     <div
                         style={{
                             position: 'absolute',
-                            bottom: '8px',
-                            right: '8px',
-                            fontSize: '16px',
+                            bottom: '6px',
+                            right: '6px',
+                            fontSize: '18px',
                             fontWeight: 'bold',
                             color: suitColors[suit],
-                            lineHeight: 1,
+                            lineHeight: 0.9,
                             textAlign: 'center',
                             transform: 'rotate(180deg)',
                         }}
                     >
                         <div>{rank}</div>
-                        <div style={{ fontSize: '14px' }}>{suitSymbols[suit]}</div>
+                        <div style={{ fontSize: '18px', marginTop: '2px' }}>{suitSymbols[suit]}</div>
                     </div>
                 </>
             ) : (

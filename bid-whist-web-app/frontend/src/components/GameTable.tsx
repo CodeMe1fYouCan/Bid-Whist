@@ -14,6 +14,13 @@ interface GameTableProps {
   bids?: any[];
   highestBid?: number;
   handleBid?: (handId: string, bidAmount: number | string) => void;
+  handleTrumpSelection?: (trumpSuit: string) => void;
+  trumpSuit?: string;
+  currentPlayerIndex?: number;
+  currentTrick?: any[];
+  tricksWon?: Record<string, number>;
+  trickNumber?: number;
+  handleCardPlay?: (handId: string, card: any) => void;
 }
 
 export default function GameTable({
@@ -29,10 +36,17 @@ export default function GameTable({
   bids = [],
   highestBid = 0,
   handleBid,
+  handleTrumpSelection,
+  trumpSuit = "",
+  currentPlayerIndex = 0,
+  currentTrick = [],
+  tricksWon = { Us: 0, Them: 0 },
+  trickNumber = 1,
+  handleCardPlay,
 }: GameTableProps) {
-  const showCards = phase === "BIDDING" || phase === "PLAYING";
+  const showCards = phase === "BIDDING" || phase === "PLAYING" || phase === "TRUMP_SELECTION";
   const [bidInput, setBidInput] = React.useState<string>("");
-  const [sortedCards, setSortedCards] = React.useState<any[]>([]);
+  const [sortedCards, setSortedCards] = React.useState<Record<string, any[]>>({});
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
 
   /** Find user’s hands */
@@ -40,17 +54,40 @@ export default function GameTable({
     (h: any) => h.playerId === currentUserId
   );
 
-  // My first hand cards
-  const myCards: any[] = [];
-  if (showCards && myHandAssignments.length > 0) {
-    const firstHand = myHandAssignments[0];
-    const handId = `${firstHand.playerId}_hand_${firstHand.handIndex}`;
-    myCards.push(...(playerHands[handId] || []));
+  // Determine which hand should be shown at the bottom (active hand)
+  // During bidding/playing, show the current active hand if it belongs to the user
+  let activeHandIndex = 0; // Default to first hand
+  if ((phase === "BIDDING" || phase === "TRUMP_SELECTION") && handAssignments.length > 0) {
+    const currentHand = handAssignments[currentBidderIndex];
+    if (currentHand && currentHand.playerId === currentUserId) {
+      // Find which of my hands is currently active
+      activeHandIndex = myHandAssignments.findIndex(
+        (h: any) => h.handIndex === currentHand.handIndex
+      );
+      if (activeHandIndex === -1) activeHandIndex = 0;
+    }
+  } else if (phase === "PLAYING" && handAssignments.length > 0) {
+    const currentHand = handAssignments[currentPlayerIndex];
+    if (currentHand && currentHand.playerId === currentUserId) {
+      // Find which of my hands is currently active
+      activeHandIndex = myHandAssignments.findIndex(
+        (h: any) => h.handIndex === currentHand.handIndex
+      );
+      if (activeHandIndex === -1) activeHandIndex = 0;
+    }
   }
 
-  // Sort cards by suit and rank (default order)
+  // Get the active hand's cards
+  const activeHand = myHandAssignments[activeHandIndex] || myHandAssignments[0];
+  const activeHandId = activeHand ? `${activeHand.playerId}_hand_${activeHand.handIndex}` : "";
+  const myCards: any[] = [];
+  if (showCards && activeHand) {
+    myCards.push(...(playerHands[activeHandId] || []));
+  }
+
+  // Sort cards by suit and rank (default order) - maintain separate sorted state per hand
   React.useEffect(() => {
-    if (myCards.length > 0 && sortedCards.length === 0) {
+    if (myCards.length > 0 && activeHandId && !sortedCards[activeHandId]) {
       const suitOrder = { hearts: 0, spades: 1, diamonds: 2, clubs: 3 };
       const rankOrder = { 'A': 13, 'K': 12, 'Q': 11, 'J': 10, '10': 9, '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1 };
       
@@ -60,13 +97,29 @@ export default function GameTable({
         return (rankOrder[b.rank as keyof typeof rankOrder] || 0) - (rankOrder[a.rank as keyof typeof rankOrder] || 0);
       });
       
-      setSortedCards(sorted);
-    } else if (myCards.length === 0) {
-      setSortedCards([]);
+      setSortedCards(prev => ({ ...prev, [activeHandId]: sorted }));
     }
-  }, [myCards.length, playerHands]);
+  }, [myCards.length, activeHandId, playerHands]);
 
-  const displayCards = sortedCards.length > 0 ? sortedCards : myCards;
+  const displayCards = (activeHandId && sortedCards[activeHandId]) ? sortedCards[activeHandId] : myCards;
+
+  // Check if it's my turn to play
+  const isMyTurnToPlay = phase === "PLAYING" && handAssignments.length > 0 && 
+    handAssignments[currentPlayerIndex]?.playerId === currentUserId;
+
+  // Handle card click during playing phase
+  const handleCardClick = (card: any) => {
+    if (phase === "PLAYING" && isMyTurnToPlay && handleCardPlay && activeHandId) {
+      handleCardPlay(activeHandId, card);
+      // Remove card from local display
+      if (sortedCards[activeHandId]) {
+        const newCards = sortedCards[activeHandId].filter(
+          (c: any) => !(c.suit === card.suit && c.rank === card.rank)
+        );
+        setSortedCards(prev => ({ ...prev, [activeHandId]: newCards }));
+      }
+    }
+  };
 
   // Drag and drop handlers
   const handleDragStart = (index: number) => {
@@ -75,14 +128,14 @@ export default function GameTable({
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (draggedIndex === null || draggedIndex === index) return;
+    if (draggedIndex === null || draggedIndex === index || !activeHandId) return;
     
     const newCards = [...displayCards];
     const draggedCard = newCards[draggedIndex];
     newCards.splice(draggedIndex, 1);
     newCards.splice(index, 0, draggedCard);
     
-    setSortedCards(newCards);
+    setSortedCards(prev => ({ ...prev, [activeHandId]: newCards }));
     setDraggedIndex(index);
   };
 
@@ -99,21 +152,26 @@ export default function GameTable({
   const getPlayerName = (position: "ACROSS" | "LEFT" | "RIGHT") => {
     if (handAssignments.length !== 4) return position;
     
-    // Find my hand index
-    const myHandIndex = handAssignments.findIndex((h: any) => h.playerId === currentUserId);
-    if (myHandIndex === -1) return position;
+    // Find the active hand's index in the full hand assignments
+    const activeHandGlobalIndex = activeHand 
+      ? handAssignments.findIndex((h: any) => 
+          h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+        )
+      : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
     
-    // Map positions relative to me (index 0 = me, 1 = left, 2 = across, 3 = right)
+    if (activeHandGlobalIndex === -1) return position;
+    
+    // Map positions relative to active hand (index 0 = active hand, 1 = left, 2 = across, 3 = right)
     let targetIndex;
     switch (position) {
       case "LEFT":
-        targetIndex = (myHandIndex + 1) % 4;
+        targetIndex = (activeHandGlobalIndex + 1) % 4;
         break;
       case "ACROSS":
-        targetIndex = (myHandIndex + 2) % 4;
+        targetIndex = (activeHandGlobalIndex + 2) % 4;
         break;
       case "RIGHT":
-        targetIndex = (myHandIndex + 3) % 4;
+        targetIndex = (activeHandGlobalIndex + 3) % 4;
         break;
       default:
         return position;
@@ -157,15 +215,16 @@ export default function GameTable({
               displayCards.map((card: any, idx: number) => (
                 <div 
                   key={`${card.suit}-${card.rank}-${idx}`} 
-                  className="-ml-6 first:ml-0 cursor-move"
-                  draggable
-                  onDragStart={() => handleDragStart(idx)}
-                  onDragOver={(e) => handleDragOver(e, idx)}
-                  onDragEnd={handleDragEnd}
-                  onDrop={handleDrop}
+                  className={`-ml-6 first:ml-0 ${phase === "PLAYING" ? (isMyTurnToPlay ? "cursor-pointer hover:scale-110 hover:-translate-y-2 transition-transform" : "cursor-not-allowed opacity-70") : "cursor-move"}`}
+                  draggable={phase !== "PLAYING"}
+                  onDragStart={() => phase !== "PLAYING" && handleDragStart(idx)}
+                  onDragOver={(e: React.DragEvent) => phase !== "PLAYING" && handleDragOver(e, idx)}
+                  onDragEnd={() => phase !== "PLAYING" && handleDragEnd()}
+                  onDrop={(e: React.DragEvent) => phase !== "PLAYING" && handleDrop(e)}
+                  onClick={() => handleCardClick(card)}
                   style={{ 
                     opacity: draggedIndex === idx ? 0.5 : 1,
-                    transition: 'opacity 0.2s'
+                    transition: 'all 0.2s'
                   }}
                 >
                   <Card suit={card.suit} rank={card.rank} faceUp width={60} height={90} />
@@ -176,7 +235,8 @@ export default function GameTable({
             )}
           </div>
           <div className="text-2xl font-bold mt-2" style={{ color: '#ffffff' }}>
-            {myHandAssignments.length > 0 ? `${myHandAssignments[0].playerName} (You)` : 'You'}
+            {activeHand ? `${activeHand.playerName} (You)` : 'You'}
+            {phase === "PLAYING" && isMyTurnToPlay && <span className="ml-2 text-yellow-300">← Your Turn!</span>}
           </div>
         </div>
 
@@ -233,13 +293,65 @@ export default function GameTable({
           )}
         </div>
 
-        {/* CENTER TRICK */}
+        {/* PLAYING PHASE INFO */}
         {phase === "PLAYING" && (
-          <div className="absolute inset-0 flex items-center justify-center text-white pointer-events-none">
-            <div className="w-48 h-48 rounded-full border-2 border-white/20 flex items-center justify-center">
-              <div className="text-lg opacity-50">Center</div>
+          <>
+            {/* Trump indicator - left of player's cards */}
+            <div className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20" style={{ bottom: '2vh', left: '10vw', color: '#ffffff' }}>
+              <div className="text-sm mb-2" style={{ opacity: 0.7 }}>Trump</div>
+              {trumpSuit === "no-trump" ? (
+                <div className="font-bold" style={{ fontSize: '2.25rem', color: '#fbbf24' }}>No Trump</div>
+              ) : (
+                <Card 
+                  suit={trumpSuit as "hearts" | "diamonds" | "clubs" | "spades"} 
+                  rank="K" 
+                  faceUp 
+                  width={90} 
+                  height={135} 
+                />
+              )}
             </div>
-          </div>
+
+            {/* Trick info - right of player's cards */}
+            <div className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20" style={{ bottom: '2vh', right: '10vw', color: '#ffffff' }}>
+              <div className="font-bold" style={{ fontSize: '2.25rem' }}>Trick {trickNumber}/13</div>
+              <div className="mt-2" style={{ fontSize: '1.5rem', opacity: 0.9 }}>
+                Us: {tricksWon.Us} | Them: {tricksWon.Them}
+              </div>
+            </div>
+
+            {/* Played cards in center */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="relative w-96 h-96">
+                {currentTrick.map((play: any, idx: number) => {
+                  // Position cards in a diamond pattern: bottom, left, top, right
+                  const positions = [
+                    { bottom: "10%", left: "50%", transform: "translateX(-50%)" }, // Bottom (player 0)
+                    { top: "50%", left: "10%", transform: "translateY(-50%)" },    // Left (player 1)
+                    { top: "10%", left: "50%", transform: "translateX(-50%)" },    // Top (player 2)
+                    { top: "50%", right: "10%", transform: "translateY(-50%)" },   // Right (player 3)
+                  ];
+                  const pos = positions[play.handIndex] || positions[0];
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className="absolute"
+                      style={pos}
+                    >
+                      <Card 
+                        suit={play.card.suit} 
+                        rank={play.card.rank} 
+                        faceUp 
+                        width={70} 
+                        height={105} 
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
         )}
 
         {/* DEALER REVEAL OVERLAY */}
@@ -516,6 +628,88 @@ export default function GameTable({
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* TRUMP SELECTION OVERLAY */}
+        {phase === "TRUMP_SELECTION" && (() => {
+          const bidWinner = handAssignments.find((h: any, idx: number) => {
+            const handId = `${h.playerId}_hand_${h.handIndex}`;
+            // Check if this is the bid winner based on currentBidderIndex or stored state
+            return idx === currentBidderIndex;
+          });
+          const isMyTurn = bidWinner?.playerId === currentUserId;
+
+          const trumpOptions = [
+            { value: "hearts", suit: "hearts" as const, rank: "K" },
+            { value: "diamonds", suit: "diamonds" as const, rank: "K" },
+            { value: "clubs", suit: "clubs" as const, rank: "K" },
+            { value: "spades", suit: "spades" as const, rank: "K" },
+            { value: "no-trump", suit: "hearts" as const, rank: "NO_TRUMP" },
+          ];
+
+          return (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="text-white p-10 rounded-3xl shadow-2xl max-w-5xl max-h-[80vh] overflow-y-auto border-4 border-white/20" style={{ backgroundColor: 'rgba(17, 24, 39, 0.97)', fontSize: '1.15rem' }}>
+                <div className="space-y-7">
+                  <h2 className="text-5xl font-bold text-center" style={{ color: '#ffffff' }}>Trump Selection</h2>
+                  
+                  {/* Bid Winner Info */}
+                  <div className="text-center">
+                    <div className="text-2xl" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>Bid Winner:</div>
+                    <div className="text-4xl font-bold mt-2" style={{ color: '#fbbf24' }}>
+                      {bidWinner?.playerName} - Hand {parseInt(bidWinner?.handIndex || "0") + 1}
+                      {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
+                    </div>
+                    <div className="mt-2 text-xl" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
+                      Winning Bid: {highestBid}
+                    </div>
+                  </div>
+
+                  {/* Trump Selection (only show if it's my turn) */}
+                  {isMyTurn ? (
+                    <div className="bg-yellow-900/20 border-2 border-yellow-400 rounded-lg p-7">
+                      <div className="text-center mb-5">
+                        <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>Select Trump Suit</div>
+                        <div className="text-lg mt-2" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                          Click a card to choose trump
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-center gap-5 flex-wrap">
+                        {trumpOptions.map((option) => (
+                          <div
+                            key={option.value}
+                            className="relative cursor-pointer transform transition-transform hover:scale-110 hover:-translate-y-2"
+                            onClick={() => handleTrumpSelection?.(option.value)}
+                          >
+                            <Card 
+                              suit={option.suit} 
+                              rank={option.rank} 
+                              faceUp={true} 
+                              width={120} 
+                              height={180}
+                            />
+                            <div className="text-center mt-3 text-base font-bold" style={{ color: '#ffffff' }}>
+                              {option.value === "no-trump" ? "No Trump" : option.value.charAt(0).toUpperCase() + option.value.slice(1)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-3xl font-semibold mb-3" style={{ color: 'rgba(255, 255, 255, 0.95)' }}>
+                        Waiting for trump selection...
+                      </div>
+                      <div className="text-xl" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                        {bidWinner?.playerName} is choosing the trump suit
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
