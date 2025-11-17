@@ -1,0 +1,1 @@
+rootProject.name = "bid-whist-web-app"

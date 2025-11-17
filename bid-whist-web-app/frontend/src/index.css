@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    min-height: 100vh;
+}
+
+h1, h2, h3 {
+    color: #2c3e50;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.button:hover {
+    background-color: #2980b9;
+}
+
+.card {
+    width: 100px;
+    height: 140px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    display: inline-block;
+    margin: 5px;
+    background-color: white;
+    position: relative;
+}
+
+.card img {
+    width: 100%;
+    height: auto;
+    border-radius: 5px;
+}
+
+.hand-view {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+}
+
+.table {
+    border: 2px solid #2c3e50;
+    border-radius: 10px;
+    padding: 20px;
+    background-color: #ecf0f1;
+}
+
+.lobby {
+    text-align: center;
+}
+
+.room-code {
+    font-size: 1.5em;
+    margin: 10px 0;
+}
