@@ -17,6 +17,8 @@ import io.ktor.websocket.webSocket
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 fun main() {
     embeddedServer(Netty, port = 8080, module = Application::module).start(wait = true)
@@ -26,15 +28,23 @@ fun main() {
 data class Player @JsonCreator constructor(
     @JsonProperty("id") val id: String,
     @JsonProperty("name") val name: String,
-    @JsonProperty("isAI") val isAI: Boolean = false
+    @JsonProperty("isReady") var isReady: Boolean = false,
+    @JsonProperty("handCount") var handCount: Int = 1,
+    @JsonProperty("team") var team: String = "Us"
 )
 
 data class WebSocketMessage @JsonCreator constructor(
     @JsonProperty("type") val type: String,
     @JsonProperty("player") val player: Player? = null,
+    @JsonProperty("playerId") val playerId: String? = null,
     @JsonProperty("handId") val handId: String? = null,
-    @JsonProperty("card") val card: String? = null,
-    @JsonProperty("aiPlayers") val aiPlayers: List<Player>? = null
+    @JsonProperty("card") val card: Map<String, String>? = null,
+    @JsonProperty("isReady") val isReady: Boolean? = null,
+    @JsonProperty("handCount") val handCount: Int? = null,
+    @JsonProperty("team") val team: String? = null,
+    @JsonProperty("guess") val guess: Int? = null,
+    @JsonProperty("bidAmount") val bidAmount: Any? = null, // Can be Int or "pass"
+    @JsonProperty("trumpSuit") val trumpSuit: String? = null
 )
 
 // Room management
@@ -45,8 +55,562 @@ data class RoomState(
     val roomCode: String,
     val players: MutableList<Player> = mutableListOf(),
     val connections: MutableMap<String, DefaultWebSocketSession> = mutableMapOf(),
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    var gameState: MutableMap<String, Any>? = null
 )
+
+suspend fun startGame(room: RoomState, objectMapper: ObjectMapper) {
+    // Create hand assignments based on player hand counts
+    val handAssignments = mutableListOf<Map<String, String>>()
+    room.players.forEach { player ->
+        repeat(player.handCount) { handIndex ->
+            handAssignments.add(mapOf(
+                "playerId" to player.id,
+                "playerName" to player.name,
+                "handIndex" to handIndex.toString(),
+                "team" to player.team
+            ))
+        }
+    }
+    
+    // Initialize game state
+    room.gameState = mutableMapOf(
+        "phase" to "DEALER_SELECTION",
+        "handAssignments" to handAssignments,
+        "teamScores" to mapOf("Us" to 0, "Them" to 0),
+        "pointsToWin" to 11, // Default to 11, can be made configurable
+        "dealerGuesses" to mutableMapOf<String, Int>()
+    )
+
+    // Broadcast dealer selection phase
+    val dealerSelectionMessage = objectMapper.writeValueAsString(
+        mapOf(
+            "type" to "DEALER_SELECTION",
+            "phase" to "DEALER_SELECTION",
+            "roomCode" to room.roomCode,
+            "players" to room.players,
+            "handAssignments" to handAssignments,
+            "teamScores" to mapOf("Us" to 0, "Them" to 0),
+            "pointsToWin" to 11,
+            "message" to "Each hand must guess a number 1-100 to determine the first dealer!"
+        )
+    )
+    room.connections.values.forEach { session ->
+        try {
+            session.send(Frame.Text(dealerSelectionMessage))
+        } catch (e: Exception) {
+            println("Error sending dealer selection: ${e.message}")
+        }
+    }
+}
+
+suspend fun handleDealerGuess(room: RoomState, handId: String, guess: Int, objectMapper: ObjectMapper) {
+    val dealerGuesses = room.gameState?.get("dealerGuesses") as? MutableMap<String, Int> ?: return
+    dealerGuesses[handId] = guess
+    
+    val handAssignments = room.gameState?.get("handAssignments") as? List<Map<String, String>> ?: return
+    
+    // Check if all hands have guessed
+    if (dealerGuesses.size == 4) {
+        // Generate random number
+        val targetNumber = (1..100).random()
+        
+        // Find closest guess
+        var closestHandId: String? = null
+        var closestDiff = Int.MAX_VALUE
+        dealerGuesses.forEach { (hId, g) ->
+            val diff = kotlin.math.abs(g - targetNumber)
+            if (diff < closestDiff) {
+                closestDiff = diff
+                closestHandId = hId
+            }
+        }
+        
+        // Find dealer index
+        val dealerIndex = handAssignments.indexOfFirst { 
+            "${it["playerId"]}_hand_${it["handIndex"]}" == closestHandId 
+        }
+        
+        // Broadcast result and start dealing
+        val resultMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "DEALER_SELECTED",
+                "targetNumber" to targetNumber,
+                "guesses" to dealerGuesses,
+                "dealerHandId" to closestHandId,
+                "dealerIndex" to dealerIndex,
+                "message" to "Dealer selected! Target was $targetNumber. Starting hand..."
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(resultMessage))
+            } catch (e: Exception) {
+                println("Error sending dealer result: ${e.message}")
+            }
+        }
+        
+        // Deal the hand
+        kotlinx.coroutines.delay(2000) // Give players time to see result
+        dealNewHand(room, objectMapper, dealerIndex)
+    } else {
+        // Broadcast updated guesses
+        val updateMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "DEALER_GUESS_UPDATE",
+                "guesses" to dealerGuesses,
+                "remaining" to (4 - dealerGuesses.size)
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(updateMessage))
+            } catch (e: Exception) {
+                println("Error sending guess update: ${e.message}")
+            }
+        }
+    }
+}
+
+suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMapper: ObjectMapper) {
+    val gameState = room.gameState ?: return
+    val handAssignments = gameState["handAssignments"] as? List<Map<String, String>> ?: return
+    val bids = gameState["bids"] as? MutableList<Map<String, Any>> ?: return
+    val currentBidderIndex = gameState["currentBidderIndex"] as? Int ?: return
+    val highestBid = gameState["highestBid"] as? Int ?: 0
+    val dealerIndex = gameState["dealerIndex"] as? Int ?: return
+    val passedPlayers = gameState["passedPlayers"] as? MutableSet<Int> ?: return
+    
+    val bidderIndex = handAssignments.indexOfFirst { 
+        "${it["playerId"]}_hand_${it["handIndex"]}" == handId 
+    }
+    
+    if (bidderIndex != currentBidderIndex) return
+    
+    // Record the bid
+    val bidEntry = mutableMapOf<String, Any>(
+        "handId" to handId,
+        "handIndex" to bidderIndex
+    )
+    
+    if (bidAmount == "pass") {
+        bidEntry["amount"] = "pass"
+        passedPlayers.add(bidderIndex)
+    } else {
+        val amount = (bidAmount as? Number)?.toInt() ?: return
+        bidEntry["amount"] = amount
+        
+        // Validate bid
+        val isDealer = bidderIndex == dealerIndex
+        if (isDealer) {
+            // Dealer can match highest bid
+            if (amount < highestBid) return
+        } else {
+            // Non-dealer must bid higher
+            if (amount <= highestBid) return
+        }
+        
+        gameState["highestBid"] = amount
+        gameState["bidWinnerHandId"] = handId
+        gameState["bidWinnerIndex"] = bidderIndex
+    }
+    
+    bids.add(bidEntry)
+    
+    // Check if bidding is complete
+    val activeBidders = (0..3).filter { it !in passedPlayers }
+    if (activeBidders.size == 1) {
+        // Bidding complete
+        val winnerHandId = gameState["bidWinnerHandId"] as? String ?: return
+        val winnerIndex = gameState["bidWinnerIndex"] as? Int ?: return
+        
+        gameState["phase"] = "TRUMP_SELECTION"
+        
+        val trumpMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "TRUMP_SELECTION",
+                "phase" to "TRUMP_SELECTION",
+                "bidWinnerHandId" to winnerHandId,
+                "bidWinnerIndex" to winnerIndex,
+                "winningBid" to highestBid,
+                "bids" to bids,
+                "message" to "Bid winner selects trump!"
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(trumpMessage))
+            } catch (e: Exception) {
+                println("Error sending trump selection: ${e.message}")
+            }
+        }
+    } else {
+        // Move to next bidder
+        var nextBidder = (currentBidderIndex + 1) % 4
+        while (nextBidder in passedPlayers) {
+            nextBidder = (nextBidder + 1) % 4
+        }
+        gameState["currentBidderIndex"] = nextBidder
+        
+        val bidUpdate = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "BID_UPDATE",
+                "bids" to bids,
+                "currentBidderIndex" to nextBidder,
+                "highestBid" to highestBid
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(bidUpdate))
+            } catch (e: Exception) {
+                println("Error sending bid update: ${e.message}")
+            }
+        }
+    }
+}
+
+suspend fun handleTrumpSelection(room: RoomState, trumpSuit: String, objectMapper: ObjectMapper) {
+    val gameState = room.gameState ?: return
+    val bidWinnerIndex = gameState["bidWinnerIndex"] as? Int ?: return
+    
+    gameState["phase"] = "PLAYING"
+    gameState["trumpSuit"] = trumpSuit
+    gameState["currentPlayerIndex"] = bidWinnerIndex
+    gameState["currentTrick"] = mutableMapOf<String, Any?>(
+        "leadSuit" to null,
+        "playedCards" to mutableListOf<Map<String, Any>>()
+    )
+    gameState["trickNumber"] = 1
+    
+    val playMessage = objectMapper.writeValueAsString(
+        mapOf(
+            "type" to "PLAYING_PHASE",
+            "phase" to "PLAYING",
+            "trumpSuit" to trumpSuit,
+            "currentPlayerIndex" to bidWinnerIndex,
+            "trickNumber" to 1,
+            "tricksWon" to gameState["tricksWon"],
+            "message" to "Trump selected! Bid winner leads."
+        )
+    )
+    room.connections.values.forEach { session ->
+        try {
+            session.send(Frame.Text(playMessage))
+        } catch (e: Exception) {
+            println("Error sending play phase: ${e.message}")
+        }
+    }
+}
+
+suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, String>, objectMapper: ObjectMapper) {
+    val gameState = room.gameState ?: return
+    val handAssignments = gameState["handAssignments"] as? List<Map<String, String>> ?: return
+    val currentPlayerIndex = gameState["currentPlayerIndex"] as? Int ?: return
+    val currentTrick = gameState["currentTrick"] as? MutableMap<String, Any> ?: return
+    val playedCards = currentTrick["playedCards"] as? MutableList<Map<String, Any>> ?: return
+    
+    val playerIndex = handAssignments.indexOfFirst { 
+        "${it["playerId"]}_hand_${it["handIndex"]}" == handId 
+    }
+    
+    if (playerIndex != currentPlayerIndex) return
+    
+    // Add card to trick
+    playedCards.add(mapOf(
+        "handId" to handId,
+        "handIndex" to playerIndex,
+        "card" to card
+    ))
+    
+    // Set lead suit if first card
+    if (playedCards.size == 1) {
+        currentTrick["leadSuit"] = card["suit"] ?: ""
+    }
+    
+    // Check if trick is complete
+    if (playedCards.size == 4) {
+        // Determine trick winner
+        val trumpSuit = gameState["trumpSuit"] as? String
+        val leadSuit = currentTrick["leadSuit"] as? String
+        val winnerIndex = determineTrickWinner(playedCards, trumpSuit, leadSuit)
+        
+        // Update tricks won
+        val winnerHandId = playedCards[winnerIndex]["handId"] as String
+        val winnerAssignment = handAssignments.find { 
+            "${it["playerId"]}_hand_${it["handIndex"]}" == winnerHandId 
+        }
+        val winnerTeam = winnerAssignment?.get("team") as? String ?: "Us"
+        
+        val tricksWon = gameState["tricksWon"] as? MutableMap<String, Int> ?: mutableMapOf()
+        tricksWon[winnerTeam] = (tricksWon[winnerTeam] ?: 0) + 1
+        
+        val trickNumber = gameState["trickNumber"] as? Int ?: 1
+        
+        // Check if hand is complete
+        if (trickNumber == 13) {
+            // Hand complete - calculate scores
+            scoreHand(room, objectMapper)
+        } else {
+            // Start next trick
+            gameState["trickNumber"] = trickNumber + 1
+            gameState["currentPlayerIndex"] = playedCards[winnerIndex]["handIndex"] as Int
+            gameState["currentTrick"] = mutableMapOf<String, Any?>(
+                "leadSuit" to null,
+                "playedCards" to mutableListOf<Map<String, Any>>()
+            )
+            
+            val nextTrickMessage = objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "TRICK_COMPLETE",
+                    "winnerHandId" to winnerHandId,
+                    "tricksWon" to tricksWon,
+                    "trickNumber" to (trickNumber + 1),
+                    "currentPlayerIndex" to playedCards[winnerIndex]["handIndex"]
+                )
+            )
+            room.connections.values.forEach { session ->
+                try {
+                    session.send(Frame.Text(nextTrickMessage))
+                } catch (e: Exception) {
+                    println("Error sending next trick: ${e.message}")
+                }
+            }
+        }
+    } else {
+        // Move to next player
+        gameState["currentPlayerIndex"] = (currentPlayerIndex + 1) % 4
+        
+        val cardPlayedMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "CARD_PLAYED",
+                "handId" to handId,
+                "card" to card,
+                "currentPlayerIndex" to ((currentPlayerIndex + 1) % 4),
+                "playedCards" to playedCards
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(cardPlayedMessage))
+            } catch (e: Exception) {
+                println("Error sending card played: ${e.message}")
+            }
+        }
+    }
+}
+
+fun determineTrickWinner(playedCards: List<Map<String, Any>>, trumpSuit: String?, leadSuit: String?): Int {
+    var winnerIndex = 0
+    var winningCard = (playedCards[0]["card"] as Map<String, String>)
+    
+    for (i in 1 until playedCards.size) {
+        val card = playedCards[i]["card"] as Map<String, String>
+        
+        // Trump beats non-trump
+        if (card["suit"] == trumpSuit && winningCard["suit"] != trumpSuit) {
+            winnerIndex = i
+            winningCard = card
+        } else if (card["suit"] == trumpSuit && winningCard["suit"] == trumpSuit) {
+            // Both trump - higher rank wins
+            if (compareRanks(card["rank"]!!, winningCard["rank"]!!) > 0) {
+                winnerIndex = i
+                winningCard = card
+            }
+        } else if (winningCard["suit"] != trumpSuit && card["suit"] == leadSuit && winningCard["suit"] != leadSuit) {
+            // Following lead suit beats off-suit
+            winnerIndex = i
+            winningCard = card
+        } else if (card["suit"] == leadSuit && winningCard["suit"] == leadSuit) {
+            // Both lead suit - higher rank wins
+            if (compareRanks(card["rank"]!!, winningCard["rank"]!!) > 0) {
+                winnerIndex = i
+                winningCard = card
+            }
+        }
+    }
+    
+    return winnerIndex
+}
+
+fun compareRanks(rank1: String, rank2: String): Int {
+    val rankOrder = listOf("2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
+    return rankOrder.indexOf(rank1) - rankOrder.indexOf(rank2)
+}
+
+suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
+    val gameState = room.gameState ?: return
+    val handAssignments = gameState["handAssignments"] as? List<Map<String, String>> ?: return
+    val bidWinnerIndex = gameState["bidWinnerIndex"] as? Int ?: return
+    val highestBid = gameState["highestBid"] as? Int ?: return
+    val tricksWon = gameState["tricksWon"] as? Map<String, Int> ?: return
+    val teamScores = gameState["teamScores"] as? MutableMap<String, Int> ?: return
+    val pointsToWin = gameState["pointsToWin"] as? Int ?: 11
+    
+    // Determine bidding team
+    val bidWinnerAssignment = handAssignments[bidWinnerIndex]
+    val biddingTeam = bidWinnerAssignment["team"] as? String ?: "Us"
+    val defendingTeam = if (biddingTeam == "Us") "Them" else "Us"
+    
+    val biddingTeamTricks = tricksWon[biddingTeam] ?: 0
+    val defendingTeamTricks = tricksWon[defendingTeam] ?: 0
+    
+    // Check if bidding team made their bid (needs 6 + bid tricks)
+    val tricksNeeded = 6 + highestBid
+    val pointsScored: Map<String, Int>
+    
+    if (biddingTeamTricks >= tricksNeeded) {
+        // Bidding team made it
+        val points = kotlin.math.max(0, biddingTeamTricks - 6)
+        teamScores[biddingTeam] = (teamScores[biddingTeam] ?: 0) + points
+        pointsScored = mapOf(biddingTeam to points, defendingTeam to 0)
+    } else {
+        // Bidding team missed
+        val points = highestBid + kotlin.math.max(0, defendingTeamTricks - 6)
+        teamScores[defendingTeam] = (teamScores[defendingTeam] ?: 0) + points
+        pointsScored = mapOf(biddingTeam to 0, defendingTeam to points)
+    }
+    
+    // Check if game is over
+    val gameOver = teamScores.values.any { it >= pointsToWin }
+    
+    if (gameOver) {
+        val winner = if ((teamScores["Us"] ?: 0) >= pointsToWin) "Us" else "Them"
+        
+        val gameOverMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "GAME_COMPLETE",
+                "phase" to "GAME_COMPLETE",
+                "teamScores" to teamScores,
+                "winner" to winner,
+                "message" to "Game Over! Team $winner wins!"
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(gameOverMessage))
+            } catch (e: Exception) {
+                println("Error sending game over: ${e.message}")
+            }
+        }
+    } else {
+        // Start next hand
+        val currentDealerIndex = gameState["dealerIndex"] as? Int ?: 0
+        val nextDealerIndex = (currentDealerIndex + 1) % 4
+        
+        val handCompleteMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "HAND_COMPLETE",
+                "phase" to "HAND_COMPLETE",
+                "tricksWon" to tricksWon,
+                "pointsScored" to pointsScored,
+                "teamScores" to teamScores,
+                "message" to "Hand complete! Starting next hand..."
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(handCompleteMessage))
+            } catch (e: Exception) {
+                println("Error sending hand complete: ${e.message}")
+            }
+        }
+        
+        kotlinx.coroutines.delay(3000) // Give players time to see scores
+        dealNewHand(room, objectMapper, nextDealerIndex)
+    }
+}
+
+suspend fun dealNewHand(room: RoomState, objectMapper: ObjectMapper, dealerIndex: Int) {
+    val handAssignments = room.gameState?.get("handAssignments") as? List<Map<String, String>> ?: return
+    
+    // Deal cards to all 4 hands (13 cards each)
+    val suits = listOf("hearts", "diamonds", "clubs", "spades")
+    val ranks = listOf("2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A")
+    val allCards = mutableListOf<Map<String, String>>()
+    
+    for (suit in suits) {
+        for (rank in ranks) {
+            allCards.add(mapOf("suit" to suit, "rank" to rank))
+        }
+    }
+    allCards.shuffle()
+    
+    val playerHands = mutableMapOf<String, List<Map<String, String>>>()
+    handAssignments.forEachIndexed { index, assignment ->
+        val handId = "${assignment["playerId"]}_hand_${assignment["handIndex"]}"
+        playerHands[handId] = allCards.subList(index * 13, (index + 1) * 13)
+    }
+
+    // First show dealing phase
+    room.gameState?.putAll(mapOf(
+        "phase" to "DEALING",
+        "dealerIndex" to dealerIndex,
+        "playerHands" to playerHands,
+        "tricksWon" to mapOf("Us" to 0, "Them" to 0)
+    ))
+
+    // Broadcast dealing phase
+    val dealingMessage = objectMapper.writeValueAsString(
+        mapOf(
+            "type" to "DEALING_PHASE",
+            "phase" to "DEALING",
+            "roomCode" to room.roomCode,
+            "handAssignments" to handAssignments,
+            "playerHands" to playerHands,
+            "dealerIndex" to dealerIndex,
+            "teamScores" to room.gameState?.get("teamScores"),
+            "pointsToWin" to room.gameState?.get("pointsToWin"),
+            "message" to "Dealing cards..."
+        )
+    )
+    room.connections.values.forEach { session ->
+        try {
+            session.send(Frame.Text(dealingMessage))
+        } catch (e: Exception) {
+            println("Error sending dealing phase: ${e.message}")
+        }
+    }
+
+    // Wait for dealing animation
+    kotlinx.coroutines.delay(3000)
+
+    // Start bidding phase - first bidder is to the left of dealer
+    val firstBidderIndex = (dealerIndex + 1) % 4
+    
+    room.gameState?.putAll(mapOf(
+        "phase" to "BIDDING",
+        "currentBidderIndex" to firstBidderIndex,
+        "bids" to mutableListOf<Map<String, Any>>(),
+        "highestBid" to 0,
+        "passedPlayers" to mutableSetOf<Int>()
+    ))
+
+    // Broadcast bidding phase start
+    val biddingMessage = objectMapper.writeValueAsString(
+        mapOf(
+            "type" to "BIDDING_PHASE",
+            "phase" to "BIDDING",
+            "roomCode" to room.roomCode,
+            "handAssignments" to handAssignments,
+            "playerHands" to playerHands,
+            "dealerIndex" to dealerIndex,
+            "currentBidderIndex" to firstBidderIndex,
+            "bids" to emptyList<Any>(),
+            "highestBid" to 0,
+            "teamScores" to room.gameState?.get("teamScores"),
+            "pointsToWin" to room.gameState?.get("pointsToWin"),
+            "message" to "Bidding phase! Starting bid is 1."
+        )
+    )
+    room.connections.values.forEach { session ->
+        try {
+            session.send(Frame.Text(biddingMessage))
+        } catch (e: Exception) {
+            println("Error sending bidding phase: ${e.message}")
+        }
+    }
+}
 
 fun Application.module() {
     install(ContentNegotiation) {
@@ -125,60 +689,177 @@ fun Application.module() {
                                         room.connections[player.id] = this
                                         println("  → Connection registered for ${player.name}. Total connections: ${room.connections.size}")
                                         
-                                        // Broadcast updated room state to all players
-                                        val roomStateMessage = objectMapper.writeValueAsString(
-                                            mapOf(
-                                                "type" to "ROOM_STATE",
-                                                "players" to room.players,
-                                                "playerCount" to room.players.size
+                                        // If game is in progress, send current game state to reconnecting player
+                                        println("  → Checking game state: ${room.gameState != null}, phase: ${room.gameState?.get("phase")}")
+                                        if (room.gameState != null) {
+                                            val phase = room.gameState?.get("phase") as? String
+                                            println("  → Game state exists, phase=$phase")
+                                            if (phase != null && phase != "DEALER_SELECTION") {
+                                                println("  → Game in progress, sending current state to ${player.name}")
+                                                val gameStateMessage = objectMapper.writeValueAsString(
+                                                    mapOf(
+                                                        "type" to phase,
+                                                        "phase" to phase
+                                                    ) + (room.gameState ?: emptyMap())
+                                                )
+                                                try {
+                                                    this.send(Frame.Text(gameStateMessage))
+                                                } catch (e: Exception) {
+                                                    println("  ⚠ Error sending game state: ${e.message}")
+                                                }
+                                            } else if (phase == "DEALER_SELECTION") {
+                                                // Send dealer selection state
+                                                val dealerMessage = objectMapper.writeValueAsString(
+                                                    mapOf(
+                                                        "type" to "DEALER_SELECTION",
+                                                        "phase" to "DEALER_SELECTION",
+                                                        "roomCode" to room.roomCode,
+                                                        "players" to room.players,
+                                                        "handAssignments" to room.gameState?.get("handAssignments"),
+                                                        "teamScores" to room.gameState?.get("teamScores"),
+                                                        "pointsToWin" to room.gameState?.get("pointsToWin"),
+                                                        "dealerGuesses" to room.gameState?.get("dealerGuesses"),
+                                                        "message" to "Each hand must guess a number 1-100 to determine the first dealer!"
+                                                    )
+                                                )
+                                                try {
+                                                    this.send(Frame.Text(dealerMessage))
+                                                } catch (e: Exception) {
+                                                    println("  ⚠ Error sending dealer selection: ${e.message}")
+                                                }
+                                            }
+                                        } else {
+                                            // No game in progress, send room state
+                                            val roomStateMessage = objectMapper.writeValueAsString(
+                                                mapOf(
+                                                    "type" to "ROOM_STATE",
+                                                    "players" to room.players,
+                                                    "playerCount" to room.players.size
+                                                )
                                             )
-                                        )
-                                        println("  → Broadcasting ROOM_STATE to ${room.connections.size} connections: ${room.players.map { it.name }}")
-                                        room.connections.values.forEach { session ->
-                                            try {
-                                                session.send(Frame.Text(roomStateMessage))
-                                            } catch (e: Exception) {
-                                                println("  ⚠ Error sending ROOM_STATE: ${e.message}")
+                                            println("  → Broadcasting ROOM_STATE to ${room.connections.size} connections: ${room.players.map { it.name }}")
+                                            room.connections.values.forEach { session ->
+                                                try {
+                                                    session.send(Frame.Text(roomStateMessage))
+                                                } catch (e: Exception) {
+                                                    println("  ⚠ Error sending ROOM_STATE: ${e.message}")
+                                                }
                                             }
                                         }
                                     }
                                 }
-                                "START_GAME" -> {
-                                    // Add AI players if provided
-                                    if (wsMessage.aiPlayers != null) {
-                                        for (aiPlayer in wsMessage.aiPlayers) {
-                                            if (!room.players.any { it.id == aiPlayer.id }) {
-                                                room.players.add(aiPlayer)
+                                "UPDATE_HAND_COUNT" -> {
+                                    if (wsMessage.playerId != null && wsMessage.handCount != null) {
+                                        val player = room.players.find { it.id == wsMessage.playerId }
+                                        if (player != null) {
+                                            player.handCount = wsMessage.handCount
+                                            println("Player ${player.name} updated hand count to ${wsMessage.handCount}")
+                                            
+                                            // Broadcast updated room state
+                                            val roomStateMessage = objectMapper.writeValueAsString(
+                                                mapOf(
+                                                    "type" to "ROOM_STATE",
+                                                    "players" to room.players,
+                                                    "playerCount" to room.players.size
+                                                )
+                                            )
+                                            room.connections.values.forEach { session ->
+                                                try {
+                                                    session.send(Frame.Text(roomStateMessage))
+                                                } catch (e: Exception) {
+                                                    println("Error sending room state: ${e.message}")
+                                                }
                                             }
                                         }
                                     }
-
-                                    // Broadcast game start with all players
-                                    val gameStartMessage = objectMapper.writeValueAsString(
-                                        mapOf(
-                                            "type" to "GAME_STARTED",
-                                            "players" to room.players,
-                                            "message" to "Game is starting! 🎮"
-                                        )
-                                    )
-                                    room.connections.values.forEach { session ->
-                                        try {
-                                            session.send(Frame.Text(gameStartMessage))
-                                        } catch (e: Exception) {
-                                            // Connection might be closed
+                                }
+                                "UPDATE_TEAM" -> {
+                                    if (wsMessage.playerId != null && wsMessage.team != null) {
+                                        val player = room.players.find { it.id == wsMessage.playerId }
+                                        if (player != null) {
+                                            player.team = wsMessage.team
+                                            println("Player ${player.name} updated team to ${wsMessage.team}")
+                                            
+                                            // Broadcast updated room state
+                                            val roomStateMessage = objectMapper.writeValueAsString(
+                                                mapOf(
+                                                    "type" to "ROOM_STATE",
+                                                    "players" to room.players,
+                                                    "playerCount" to room.players.size
+                                                )
+                                            )
+                                            room.connections.values.forEach { session ->
+                                                try {
+                                                    session.send(Frame.Text(roomStateMessage))
+                                                } catch (e: Exception) {
+                                                    println("Error sending room state: ${e.message}")
+                                                }
+                                            }
                                         }
+                                    }
+                                }
+                                "TOGGLE_READY" -> {
+                                    if (wsMessage.playerId != null && wsMessage.isReady != null) {
+                                        val player = room.players.find { it.id == wsMessage.playerId }
+                                        if (player != null) {
+                                            player.isReady = wsMessage.isReady
+                                            println("Player ${player.name} ready state: ${wsMessage.isReady}")
+                                            
+                                            // Broadcast updated room state
+                                            val roomStateMessage = objectMapper.writeValueAsString(
+                                                mapOf(
+                                                    "type" to "ROOM_STATE",
+                                                    "players" to room.players,
+                                                    "playerCount" to room.players.size
+                                                )
+                                            )
+                                            room.connections.values.forEach { session ->
+                                                try {
+                                                    session.send(Frame.Text(roomStateMessage))
+                                                } catch (e: Exception) {
+                                                    println("Error sending room state: ${e.message}")
+                                                }
+                                            }
+                                            
+                                            // Check if all players are ready, total hands = 4, and teams balanced
+                                            val totalHands = room.players.sumOf { it.handCount }
+                                            val allReady = room.players.all { it.isReady }
+                                            val usHands = room.players.filter { it.team == "Us" }.sumOf { it.handCount }
+                                            val themHands = room.players.filter { it.team == "Them" }.sumOf { it.handCount }
+                                            val teamsBalanced = usHands == 2 && themHands == 2
+                                            
+                                            println("Game start check: allReady=$allReady, totalHands=$totalHands, usHands=$usHands, themHands=$themHands, teamsBalanced=$teamsBalanced")
+                                            println("Players: ${room.players.map { "${it.name}(ready=${it.isReady}, hands=${it.handCount}, team=${it.team})" }}")
+                                            
+                                            if (allReady && totalHands == 4 && teamsBalanced) {
+                                                println("✓ All conditions met! Starting game...")
+                                                // Auto-start the game
+                                                startGame(room, objectMapper)
+                                            } else {
+                                                println("✗ Not ready to start yet")
+                                            }
+                                        }
+                                    }
+                                }
+
+                                "DEALER_GUESS" -> {
+                                    if (wsMessage.handId != null && wsMessage.guess != null) {
+                                        handleDealerGuess(room, wsMessage.handId, wsMessage.guess, objectMapper)
+                                    }
+                                }
+                                "PLACE_BID" -> {
+                                    if (wsMessage.handId != null && wsMessage.bidAmount != null) {
+                                        handleBid(room, wsMessage.handId, wsMessage.bidAmount, objectMapper)
+                                    }
+                                }
+                                "SELECT_TRUMP" -> {
+                                    if (wsMessage.trumpSuit != null) {
+                                        handleTrumpSelection(room, wsMessage.trumpSuit, objectMapper)
                                     }
                                 }
                                 "PLAY_CARD" -> {
-                                    // Broadcast play card action to other players
-                                    room.connections.values.forEach { session ->
-                                        if (session != this) {
-                                            try {
-                                                session.send(message)
-                                            } catch (e: Exception) {
-                                                // Connection might be closed
-                                            }
-                                        }
+                                    if (wsMessage.handId != null && wsMessage.card != null) {
+                                        handleCardPlay(room, wsMessage.handId, wsMessage.card, objectMapper)
                                     }
                                 }
                             }
@@ -190,24 +871,23 @@ fun Application.module() {
             } catch (e: Exception) {
                 println("WebSocket error: ${e.message}")
             } finally {
-                // Remove only the disconnected player, but keep the room alive
+                // Remove only the connection, keep players in the room for reconnection
                 val roomCode = call.parameters["roomCode"]?.uppercase()
                 if (roomCode != null) {
                     val room = activeRooms[roomCode]
                     if (room != null) {
-                        val playersToRemove = room.players.filter { player ->
+                        // Find which player(s) had this connection
+                        val disconnectedPlayers = room.players.filter { player ->
                             room.connections[player.id] == this
                         }
-                        playersToRemove.forEach { player ->
+                        
+                        // Remove the connection but keep the player in the room
+                        disconnectedPlayers.forEach { player ->
                             room.connections.remove(player.id)
-                            room.players.remove(player)
-                            println("Player ${player.name} disconnected from room $roomCode. Remaining players: ${room.players.size}")
+                            println("Player ${player.name} disconnected from room $roomCode (connection removed, player kept for reconnection)")
                         }
-                        // DO NOT delete empty rooms - they may be rejoined later
-                        // Only log that the room is now empty
-                        if (room.players.isEmpty()) {
-                            println("Room $roomCode is now empty but kept alive for late joiners")
-                        }
+                        
+                        println("Room $roomCode now has ${room.connections.size} active connections and ${room.players.size} players")
                     }
                 }
             }

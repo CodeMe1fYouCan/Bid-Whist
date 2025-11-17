@@ -11,17 +11,29 @@ interface StoredUser {
     name: string;
 }
 
+interface Player {
+    id: string;
+    name: string;
+    isReady: boolean;
+    handCount: number;
+    team: 'Us' | 'Them';
+}
+
 const Room: React.FC = () => {
     const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
     const history = useHistory();
     const roomCode = (rawRoomCode || '').toUpperCase();
-    const [players, setPlayers] = useState<any[]>([]);
+    const [players, setPlayers] = useState<Player[]>([]);
     const [hands, setHands] = useState({});
     const [copied, setCopied] = useState(false);
     const [codeError, setCodeError] = useState('');
     const [currentUser, setCurrentUser] = useState<StoredUser | null>(null);
     const [gameStarted, setGameStarted] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [handCount, setHandCount] = useState(1);
+    const [isReady, setIsReady] = useState(false);
+    const [team, setTeam] = useState<'Us' | 'Them'>('Us');
+    const justToggledReadyRef = useRef(false);
     const { sendMessage, messages, isConnected, readyState } = useWebSocket(
         isValidRoomCode(roomCode) ? `ws://localhost:8080/room/${roomCode}` : ''
     );
@@ -35,14 +47,6 @@ const Room: React.FC = () => {
                 const user = JSON.parse(storedUser);
                 console.log('Stored user found:', user);
                 setCurrentUser(user);
-                // Add current user to players list immediately
-                setPlayers(prev => {
-                    if (!prev.some(p => p.id === user.id)) {
-                        console.log('Adding current user to local players:', user);
-                        return [...prev, { id: user.id, name: user.name }];
-                    }
-                    return prev;
-                });
             } catch (e) {
                 console.error('Failed to parse stored user', e);
             }
@@ -81,18 +85,39 @@ const Room: React.FC = () => {
                         });
                         break;
                     case 'ROOM_STATE':
-                        // Use server's authoritative state directly
+                        // Use server's authoritative state directly for the players list
                         if (data.players && Array.isArray(data.players)) {
                             console.log('Received ROOM_STATE with players:', data.players);
-                            setPlayers(data.players);
+                            // Create a new array with new objects to ensure React detects the change
+                            setPlayers(data.players.map((p: Player) => ({ ...p })));
+                            
+                            // Update local state to match server for current user
+                            if (currentUser) {
+                                const myPlayer = data.players.find((p: Player) => p.id === currentUser.id);
+                                if (myPlayer) {
+                                    // Always sync handCount and team
+                                    setHandCount(myPlayer.handCount);
+                                    setTeam(myPlayer.team);
+                                    // Only skip syncing isReady if we just toggled it to prevent flash
+                                    if (!justToggledReadyRef.current) {
+                                        setIsReady(myPlayer.isReady);
+                                    }
+                                }
+                            }
                         }
                         break;
-                    case 'GAME_STARTED':
-                        // Update players and mark game as started
-                        if (data.players && Array.isArray(data.players)) {
-                            setPlayers(data.players);
-                        }
+                    case 'DEALER_SELECTION':
+                        // Game is starting - navigate to game page
+                        console.log('Received DEALER_SELECTION, navigating to game page...');
                         setGameStarted(true);
+                        // Navigate immediately so we don't miss any game messages
+                        history.push(`/game/${roomCode}`);
+                        break;
+                    case 'GAME_STARTED':
+                        // Legacy handler
+                        console.log('Game starting, navigating to game page...');
+                        setGameStarted(true);
+                        history.push(`/game/${roomCode}`);
                         break;
                     case 'UPDATE_HANDS':
                         setHands(data.hands);
@@ -126,12 +151,54 @@ const Room: React.FC = () => {
                 type: 'PLAYER_JOINED',
                 player: {
                     id: currentUser.id,
-                    name: currentUser.name
+                    name: currentUser.name,
+                    isReady: false,
+                    handCount: 1,
+                    team: 'Us'
                 }
             }));
             joinedRef.current = true;
         }
     }, [currentUser, roomCode, isConnected, sendMessage]);
+
+    const handleHandCountChange = (count: number) => {
+        setHandCount(count);
+        if (currentUser && isConnected) {
+            sendMessage(JSON.stringify({
+                type: 'UPDATE_HAND_COUNT',
+                playerId: currentUser.id,
+                handCount: count
+            }));
+        }
+    };
+
+    const handleTeamChange = (newTeam: 'Us' | 'Them') => {
+        setTeam(newTeam);
+        if (currentUser && isConnected) {
+            sendMessage(JSON.stringify({
+                type: 'UPDATE_TEAM',
+                playerId: currentUser.id,
+                team: newTeam
+            }));
+        }
+    };
+
+    const handleToggleReady = () => {
+        const newReadyState = !isReady;
+        setIsReady(newReadyState);
+        justToggledReadyRef.current = true;
+        if (currentUser && isConnected) {
+            sendMessage(JSON.stringify({
+                type: 'TOGGLE_READY',
+                playerId: currentUser.id,
+                isReady: newReadyState
+            }));
+        }
+        // Reset the flag after a short delay
+        setTimeout(() => {
+            justToggledReadyRef.current = false;
+        }, 500);
+    };
 
     const copyRoomCode = () => {
         navigator.clipboard.writeText(roomCode);
@@ -146,34 +213,13 @@ const Room: React.FC = () => {
         history.push('/');
     };
 
-    const handleStartGame = async () => {
-        setLoading(true);
-        try {
-            // Send START_GAME message to server with AI players if needed
-            const aiPlayers = [];
-            const playerNames = ['Oatmeal', 'Jacob', 'Reddy'];
-            
-            // Add AI players to reach 4 total
-            for (let i = players.length; i < 4; i++) {
-                aiPlayers.push({
-                    id: `ai_${i}_${Date.now()}`,
-                    name: playerNames[i - 1] || `Player ${i + 1}`,
-                    isAI: true
-                });
-            }
-
-            sendMessage(JSON.stringify({
-                type: 'START_GAME',
-                aiPlayers: aiPlayers
-            }));
-
-            setGameStarted(true);
-        } catch (err) {
-            console.error('Failed to start game:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    // Calculate total hands controlled by all players
+    const totalHands = players.reduce((sum, p) => sum + p.handCount, 0);
+    const usHands = players.filter(p => p.team === 'Us').reduce((sum, p) => sum + p.handCount, 0);
+    const themHands = players.filter(p => p.team === 'Them').reduce((sum, p) => sum + p.handCount, 0);
+    const allPlayersReady = players.length > 0 && players.every(p => p.isReady);
+    const teamsBalanced = usHands === 2 && themHands === 2;
+    const canStartGame = allPlayersReady && totalHands === 4 && teamsBalanced;
 
     if (codeError) {
         return (
@@ -230,34 +276,224 @@ const Room: React.FC = () => {
                     </button>
                 </div>
 
+                {/* Hand Selection for Current Player */}
+                {!gameStarted && currentUser && (
+                    <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                        <h2 className="text-xl font-bold text-gray-800 mb-4">Your Settings</h2>
+                        <div className="space-y-4">
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        🎴 Number of Hands to Control
+                                    </label>
+                                    <div className="flex gap-2">
+                                        {[1, 2, 3].map(count => {
+                                            const isSelected = handCount === count;
+                                            return (
+                                                <button
+                                                    key={count}
+                                                    onClick={() => handleHandCountChange(count)}
+                                                    disabled={isReady}
+                                                    className={`px-6 py-2 rounded-lg font-bold transition duration-200 ${
+                                                        isSelected
+                                                            ? 'bg-purple-600 text-white shadow-md'
+                                                            : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                                    } ${isReady ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                                >
+                                                    {count}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        {isReady ? 'Uncheck ready to change settings' : 'Select how many hands you want to play'}
+                                    </p>
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        👥 Team
+                                    </label>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => handleTeamChange('Us')}
+                                            disabled={isReady}
+                                            className={`flex-1 px-6 py-2 rounded-lg font-bold transition duration-200 ${
+                                                team === 'Us'
+                                                    ? 'bg-blue-600 text-white shadow-md'
+                                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                            } ${isReady ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        >
+                                            Us
+                                        </button>
+                                        <button
+                                            onClick={() => handleTeamChange('Them')}
+                                            disabled={isReady}
+                                            className={`flex-1 px-6 py-2 rounded-lg font-bold transition duration-200 ${
+                                                team === 'Them'
+                                                    ? 'bg-red-600 text-white shadow-md'
+                                                    : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                                            } ${isReady ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                        >
+                                            Them
+                                        </button>
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Choose your team
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="border-t pt-4">
+                                <button
+                                    onClick={handleToggleReady}
+                                    className={`w-full py-4 px-6 rounded-lg font-bold text-xl transition-all duration-200 ${
+                                        isReady
+                                            ? 'bg-yellow-500 hover:bg-yellow-600 text-white shadow-lg'
+                                            : 'bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl'
+                                    }`}
+                                >
+                                    {isReady ? '❌ UNREADY' : '✓ READY UP'}
+                                </button>
+                                <p className="text-sm text-center text-gray-600 mt-3">
+                                    {isReady 
+                                        ? 'Waiting for other players to ready up...' 
+                                        : 'Click when you\'re ready to begin the game'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Players Section */}
                 <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-2xl font-bold text-gray-800">
-                            Players ({players.length}/4)
+                            Players in Room
                         </h2>
-                        {!gameStarted && (
-                            <button
-                                onClick={handleStartGame}
-                                disabled={loading}
-                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-bold py-2 px-6 rounded-lg transition duration-200 text-sm"
-                            >
-                                {loading ? '🎮 Starting...' : '🎮 Start Game'}
-                            </button>
-                        )}
+                        <div className="text-right">
+                            <p className="text-sm text-gray-600">Total Hands: {totalHands}/4</p>
+                            <p className="text-xs text-gray-500">
+                                Team Us: {usHands}/2 hands | Team Them: {themHands}/2 hands
+                            </p>
+                            {!canStartGame && totalHands < 4 && (
+                                <p className="text-xs text-orange-600 mt-1">Need {4 - totalHands} more hand(s)</p>
+                            )}
+                            {!canStartGame && totalHands === 4 && !teamsBalanced && (
+                                <p className="text-xs text-orange-600 mt-1">
+                                    Each team must have exactly 2 hands
+                                </p>
+                            )}
+                            {!canStartGame && totalHands === 4 && teamsBalanced && !allPlayersReady && (
+                                <p className="text-xs text-orange-600 mt-1">Waiting for all players to be ready</p>
+                            )}
+                            {canStartGame && (
+                                <p className="text-xs text-green-600 mt-1 font-bold">✓ Ready to start!</p>
+                            )}
+                        </div>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {players.map(player => (
-                            <div key={player.id} className="bg-gradient-to-br from-purple-100 to-blue-100 rounded-lg p-4 border-2 border-purple-200">
-                                <h3 className="font-bold text-lg text-purple-700">{player.name}</h3>
-                                <p className="text-sm text-gray-600">Ready</p>
+                    <div className="space-y-6">
+                        {/* Team Us */}
+                        <div>
+                            <h3 className="text-lg font-bold text-blue-700 mb-3 flex items-center gap-2">
+                                <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">Team Us</span>
+                                <span className="text-sm text-gray-600">
+                                    ({players.filter(p => p.team === 'Us').reduce((sum, p) => sum + p.handCount, 0)} hands)
+                                </span>
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {players.filter(p => p.team === 'Us').map(player => (
+                                    <div 
+                                        key={player.id} 
+                                        className={`rounded-lg p-4 border-2 ${
+                                            player.isReady 
+                                                ? 'bg-gradient-to-br from-blue-100 to-green-100 border-blue-400' 
+                                                : 'bg-blue-50 border-blue-200'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-bold text-lg text-gray-800">
+                                                    {player.name}
+                                                    {player.id === currentUser?.id && ' (You)'}
+                                                </h3>
+                                                <p className="text-sm text-gray-600">
+                                                    {player.handCount} hand{player.handCount !== 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={player.isReady}
+                                                    disabled
+                                                    className="w-5 h-5"
+                                                />
+                                                <span className={`text-sm font-bold ${
+                                                    player.isReady ? 'text-green-600' : 'text-gray-500'
+                                                }`}>
+                                                    {player.isReady ? 'Ready' : 'Not Ready'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {players.filter(p => p.team === 'Us').length === 0 && (
+                                    <div className="col-span-full bg-blue-50 border-2 border-dashed border-blue-200 rounded-lg p-4 text-center text-gray-500">
+                                        No players on Team Us yet
+                                    </div>
+                                )}
                             </div>
-                        ))}
-                        {Array.from({ length: Math.max(0, 4 - players.length) }).map((_, i) => (
-                            <div key={`empty-${i}`} className="bg-gray-100 rounded-lg p-4 border-2 border-dashed border-gray-300 flex items-center justify-center min-h-24">
-                                <p className="text-gray-400 text-center">Will be filled with AI</p>
+                        </div>
+
+                        {/* Team Them */}
+                        <div>
+                            <h3 className="text-lg font-bold text-red-700 mb-3 flex items-center gap-2">
+                                <span className="bg-red-600 text-white px-3 py-1 rounded-full text-sm">Team Them</span>
+                                <span className="text-sm text-gray-600">
+                                    ({players.filter(p => p.team === 'Them').reduce((sum, p) => sum + p.handCount, 0)} hands)
+                                </span>
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {players.filter(p => p.team === 'Them').map(player => (
+                                    <div 
+                                        key={player.id} 
+                                        className={`rounded-lg p-4 border-2 ${
+                                            player.isReady 
+                                                ? 'bg-gradient-to-br from-red-100 to-green-100 border-red-400' 
+                                                : 'bg-red-50 border-red-200'
+                                        }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h3 className="font-bold text-lg text-gray-800">
+                                                    {player.name}
+                                                    {player.id === currentUser?.id && ' (You)'}
+                                                </h3>
+                                                <p className="text-sm text-gray-600">
+                                                    {player.handCount} hand{player.handCount !== 1 ? 's' : ''}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={player.isReady}
+                                                    disabled
+                                                    className="w-5 h-5"
+                                                />
+                                                <span className={`text-sm font-bold ${
+                                                    player.isReady ? 'text-green-600' : 'text-gray-500'
+                                                }`}>
+                                                    {player.isReady ? 'Ready' : 'Not Ready'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                {players.filter(p => p.team === 'Them').length === 0 && (
+                                    <div className="col-span-full bg-red-50 border-2 border-dashed border-red-200 rounded-lg p-4 text-center text-gray-500">
+                                        No players on Team Them yet
+                                    </div>
+                                )}
                             </div>
-                        ))}
+                        </div>
                     </div>
                 </div>
 
