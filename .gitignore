@@ -16,4 +16,23 @@
 *.iml
 
 # Vite / npm
+# package locks
 /package-lock.json
+/bid-whist-web-app/frontend/package-lock.json
+
+# Frontend
+/bid-whist-web-app/frontend/.vite/
+/bid-whist-web-app/frontend/.cache/
+/bid-whist-web-app/frontend/.env
+
+# Server
+/bid-whist-web-app/server/*.log
+/bid-whist-web-app/server/gradle.properties
+
+# Archives
+/bid-whist-web-app/server/build/
+
+# Optional: local env files
+.env
+.env.local
+.env.*.local
