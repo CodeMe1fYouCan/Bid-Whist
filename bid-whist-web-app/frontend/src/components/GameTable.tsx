@@ -318,7 +318,7 @@ export default function GameTable({
             const acrossIndex = (activeHandGlobalIndex + 2) % 4;
             const acrossHand = handAssignments[acrossIndex];
             const acrossHandId = acrossHand ? `${acrossHand.playerId}_hand_${acrossHand.handIndex}` : "";
-            const cardCount = playerHands[acrossHandId]?.length || 13;
+            const cardCount = playerHands[acrossHandId]?.length ?? 13;
             
             return (
               <div className="flex">
@@ -358,7 +358,7 @@ export default function GameTable({
             const leftIndex = (activeHandGlobalIndex + 1) % 4;
             const leftHand = handAssignments[leftIndex];
             const leftHandId = leftHand ? `${leftHand.playerId}_hand_${leftHand.handIndex}` : "";
-            const cardCount = playerHands[leftHandId]?.length || 13;
+            const cardCount = playerHands[leftHandId]?.length ?? 13;
             
             return (
               <div className="flex flex-col items-center">
@@ -400,7 +400,7 @@ export default function GameTable({
             const rightIndex = (activeHandGlobalIndex + 3) % 4;
             const rightHand = handAssignments[rightIndex];
             const rightHandId = rightHand ? `${rightHand.playerId}_hand_${rightHand.handIndex}` : "";
-            const cardCount = playerHands[rightHandId]?.length || 13;
+            const cardCount = playerHands[rightHandId]?.length ?? 13;
             
             return (
               <div className="flex flex-col items-center">
@@ -536,14 +536,27 @@ export default function GameTable({
                 )}
                 
                 {currentTrick.map((play: any, idx: number) => {
-                  // Position cards in a diamond pattern: bottom, left, top, right
+                  // Position cards based on relative position to active player
+                  // Calculate which visual position this card should be in
+                  const activeHandGlobalIndex = activeHand 
+                    ? handAssignments.findIndex((h: any) => 
+                        h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+                      )
+                    : 0;
+                  
+                  // Calculate relative position (0=you, 1=left, 2=across, 3=right)
+                  const relativePosition = (play.handIndex - activeHandGlobalIndex + 4) % 4;
+                  
+                  // Stack cards in center but offset toward the player who played them
+                  // Each card is slightly offset from center toward its player
+                  const stackOffset = idx * 3; // Stack order offset
                   const positions = [
-                    { bottom: "10%", left: "50%", transform: "translateX(-50%)" }, // Bottom (player 0)
-                    { top: "50%", left: "10%", transform: "translateY(-50%)" },    // Left (player 1)
-                    { top: "10%", left: "50%", transform: "translateX(-50%)" },    // Top (player 2)
-                    { top: "50%", right: "10%", transform: "translateY(-50%)" },   // Right (player 3)
+                    { top: "50%", left: "50%", transform: `translate(-50%, calc(-50% + ${stackOffset}px + 40px))` }, // Bottom (you) - offset down
+                    { top: "50%", left: "50%", transform: `translate(calc(-50% - 40px - ${stackOffset}px), -50%)` },  // Left - offset left
+                    { top: "50%", left: "50%", transform: `translate(-50%, calc(-50% - ${stackOffset}px - 40px))` }, // Top (across) - offset up
+                    { top: "50%", left: "50%", transform: `translate(calc(-50% + 40px + ${stackOffset}px), -50%)` },  // Right - offset right
                   ];
-                  const pos = positions[play.handIndex] || positions[0];
+                  const pos = positions[relativePosition] || positions[0];
                   
                   const isWinner = showTrickComplete && play.handId === trickWinnerHandId;
                   
@@ -552,7 +565,9 @@ export default function GameTable({
                   if (showTrickComplete && trickWinnerHandId) {
                     const winnerPlay = currentTrick.find((p: any) => p.handId === trickWinnerHandId);
                     if (winnerPlay) {
-                      const winnerPos = positions[winnerPlay.handIndex];
+                      // Calculate winner's relative position
+                      const winnerRelativePosition = (winnerPlay.handIndex - activeHandGlobalIndex + 4) % 4;
+                      const winnerPos = positions[winnerRelativePosition];
                       // Slide all cards to winner's position with slight offset for stacking effect
                       const offsetX = (idx - currentTrick.findIndex((p: any) => p.handId === trickWinnerHandId)) * 5;
                       animateStyle = {

@@ -500,6 +500,29 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
     
     // Check if trick is complete
     if (playedCards.size == 4) {
+        // First, send CARD_PLAYED for the 4th card so clients can see it
+        val cardPlayedMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "CARD_PLAYED",
+                "handId" to handId,
+                "card" to card,
+                "currentPlayerIndex" to currentPlayerIndex,
+                "playedCards" to playedCards,
+                "playerHands" to playerHands
+            )
+        )
+        room.connections.values.forEach { session ->
+            try {
+                session.send(Frame.Text(cardPlayedMessage))
+                println("   ✓ Sent CARD_PLAYED for 4th card")
+            } catch (e: Exception) {
+                println("   ✗ Error sending card played: ${e.message}")
+            }
+        }
+        
+        // Small delay to let clients render the 4th card before trick completion
+        kotlinx.coroutines.delay(500)
+        
         // Determine trick winner
         val trumpSuit = gameState["trumpSuit"] as? String
         val leadSuit = currentTrick["leadSuit"] as? String
