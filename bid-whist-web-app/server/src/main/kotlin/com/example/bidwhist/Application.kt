@@ -105,13 +105,26 @@ suspend fun startGame(room: RoomState, objectMapper: ObjectMapper) {
 }
 
 suspend fun handleDealerGuess(room: RoomState, handId: String, guess: Int, objectMapper: ObjectMapper) {
-    val dealerGuesses = room.gameState?.get("dealerGuesses") as? MutableMap<String, Int> ?: return
+    println("📥 Received dealer guess: handId=$handId, guess=$guess")
+    val dealerGuesses = room.gameState?.get("dealerGuesses") as? MutableMap<String, Int> ?: run {
+        println("❌ ERROR: dealerGuesses is null or wrong type!")
+        return
+    }
     dealerGuesses[handId] = guess
+    println("   Current dealerGuesses: $dealerGuesses")
+    println("   Size: ${dealerGuesses.size}/4")
+    println("   Keys: ${dealerGuesses.keys}")
     
-    val handAssignments = room.gameState?.get("handAssignments") as? List<Map<String, String>> ?: return
+    val handAssignments = room.gameState?.get("handAssignments") as? List<Map<String, String>> ?: run {
+        println("❌ ERROR: handAssignments is null or wrong type!")
+        return
+    }
+    println("   Expected hand count: ${handAssignments.size}")
     
     // Check if all hands have guessed
-    if (dealerGuesses.size == 4) {
+    println("   Checking if ${dealerGuesses.size} == ${handAssignments.size}")
+    if (dealerGuesses.size >= handAssignments.size) {
+        println("✅ All ${handAssignments.size} hands have guessed! Selecting dealer...")
         // Generate random number
         val targetNumber = (1..100).random()
         
@@ -131,6 +144,11 @@ suspend fun handleDealerGuess(room: RoomState, handId: String, guess: Int, objec
             "${it["playerId"]}_hand_${it["handIndex"]}" == closestHandId 
         }
         
+        println("🎯 Dealer selection complete:")
+        println("   Target number: $targetNumber")
+        println("   Closest handId: $closestHandId")
+        println("   Dealer index: $dealerIndex")
+        
         // Broadcast result and start dealing
         val resultMessage = objectMapper.writeValueAsString(
             mapOf(
@@ -142,19 +160,24 @@ suspend fun handleDealerGuess(room: RoomState, handId: String, guess: Int, objec
                 "message" to "Dealer selected! Target was $targetNumber. Starting hand..."
             )
         )
+        println("📤 Broadcasting DEALER_SELECTED to ${room.connections.size} connections")
         room.connections.values.forEach { session ->
             try {
                 session.send(Frame.Text(resultMessage))
+                println("   ✓ Sent to connection")
             } catch (e: Exception) {
-                println("Error sending dealer result: ${e.message}")
+                println("   ✗ Error sending dealer result: ${e.message}")
             }
         }
         
         // Deal the hand
+        println("⏳ Waiting 2 seconds before dealing...")
         kotlinx.coroutines.delay(2000) // Give players time to see result
+        println("🃏 Starting to deal new hand...")
         dealNewHand(room, objectMapper, dealerIndex)
     } else {
         // Broadcast updated guesses
+        println("📤 Broadcasting DEALER_GUESS_UPDATE: ${dealerGuesses.size}/4 guesses")
         val updateMessage = objectMapper.writeValueAsString(
             mapOf(
                 "type" to "DEALER_GUESS_UPDATE",
@@ -162,6 +185,7 @@ suspend fun handleDealerGuess(room: RoomState, handId: String, guess: Int, objec
                 "remaining" to (4 - dealerGuesses.size)
             )
         )
+        println("   Message: $updateMessage")
         room.connections.values.forEach { session ->
             try {
                 session.send(Frame.Text(updateMessage))
@@ -843,8 +867,12 @@ fun Application.module() {
                                 }
 
                                 "DEALER_GUESS" -> {
+                                    println("🎲 DEALER_GUESS message received")
                                     if (wsMessage.handId != null && wsMessage.guess != null) {
+                                        println("   handId: ${wsMessage.handId}, guess: ${wsMessage.guess}")
                                         handleDealerGuess(room, wsMessage.handId, wsMessage.guess, objectMapper)
+                                    } else {
+                                        println("   ❌ Missing handId or guess! handId=${wsMessage.handId}, guess=${wsMessage.guess}")
                                     }
                                 }
                                 "PLACE_BID" -> {

@@ -1,169 +1,172 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-
-/**
- * COMPLETE Game.tsx UI REWRITE
- * - Casino table (rounded rectangle)
- * - Black felt vignette background
- * - Table always visible across all phases
- * - Phases shown as overlays only
- * - Zero scrolling layout
- */
+import useWebSocket from "../hooks/useWebSocket";
+import DealerSelection from "../components/DealerSelection";
+import BiddingPhase from "../components/BiddingPhase";
+import GameTable from "../components/GameTable";
 
 const Game = () => {
-  const [phase] = useState("BIDDING");
+  const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
+  const roomCode = (rawRoomCode || "").toUpperCase();
+
+  const [phase, setPhase] = useState("DEALER_SELECTION");
+  const [players, setPlayers] = useState<any[]>([]);
+  const [handAssignments, setHandAssignments] = useState<any[]>([]);
+  const [dealerGuesses, setDealerGuesses] = useState<Record<string, number>>({});
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [guessInput, setGuessInput] = useState<Record<string, string>>({});
+  const [playerHands, setPlayerHands] = useState<Record<string, any[]>>({});
+  const [currentBidderIndex, setCurrentBidderIndex] = useState<number>(0);
+  const [bids, setBids] = useState<any[]>([]);
+  const [highestBid, setHighestBid] = useState<number>(0);
+  
+  const joinedRef = useRef(false);
+
+  const { sendMessage, messages, isConnected } = useWebSocket(
+    `ws://localhost:8080/room/${roomCode}`
+  );
+
+  /* Load current user */
+  useEffect(() => {
+    const stored = sessionStorage.getItem(`room_${roomCode}_user`);
+    if (stored) setCurrentUserId(JSON.parse(stored).id);
+  }, [roomCode]);
+
+  /* Send PLAYER_JOINED when connected to get game state - ONCE */
+  useEffect(() => {
+    if (!isConnected || !currentUserId || joinedRef.current) return;
+    
+    const stored = sessionStorage.getItem(`room_${roomCode}_user`);
+    if (stored) {
+      const user = JSON.parse(stored);
+      sendMessage(JSON.stringify({
+        type: "PLAYER_JOINED",
+        player: {
+          id: user.id,
+          name: user.name,
+          isReady: true,
+          handCount: 1,
+          team: "Us"
+        }
+      }));
+      console.log("Game page: Sent PLAYER_JOINED to get game state");
+      joinedRef.current = true;
+    }
+  }, [isConnected, currentUserId, roomCode, sendMessage]);
+
+  /* WS Message Handler */
+  useEffect(() => {
+    if (!messages.length) return;
+    const data = JSON.parse(messages[messages.length - 1]);
+    console.log("🎮 Game page received:", data.type, data);
+
+    if (data.phase) setPhase(data.phase);
+    if (data.players) setPlayers(data.players);
+    if (data.handAssignments) setHandAssignments(data.handAssignments);
+    if (data.playerHands) setPlayerHands(data.playerHands);
+    if (data.currentBidderIndex !== undefined) setCurrentBidderIndex(data.currentBidderIndex);
+    if (data.bids) setBids(data.bids);
+    if (data.highestBid !== undefined) setHighestBid(data.highestBid);
+    
+    if (data.type === "DEALER_GUESS_UPDATE") {
+      setDealerGuesses(data.guesses || {});
+    }
+    if (data.type === "DEALER_SELECTED") {
+      setDealerGuesses(data.guesses || {});
+    }
+  }, [messages]);
+
+  /* Build handAssignments if server doesn't send them */
+  useEffect(() => {
+    if (handAssignments.length === 0 && players.length > 0) {
+      const built: any[] = [];
+      players.forEach((p) => {
+        for (let i = 0; i < p.handCount; i++) {
+          built.push({
+            playerId: p.id,
+            playerName: p.name,
+            handIndex: i.toString(),
+            team: p.team,
+          });
+        }
+      });
+      setHandAssignments(built);
+    }
+  }, [players, handAssignments.length]);
+
+  const handleGuessSubmit = (handId: string) => {
+    const guess = parseInt(guessInput[handId] || "0");
+    if (guess >= 1 && guess <= 100) {
+      sendMessage(JSON.stringify({ type: "DEALER_GUESS", handId, guess }));
+    }
+  };
+
+  const handleBid = (handId: string, bidAmount: number | string) => {
+    console.log(`📤 Placing bid: handId=${handId}, amount=${bidAmount}`);
+    sendMessage(JSON.stringify({ type: "PLACE_BID", handId, bidAmount }));
+  };
+
+  // Render phase-specific overlay
+  const renderPhaseOverlay = () => {
+    if (phase === "PLAYING") return null;
+
+    let content = null;
+    
+    if (phase === "DEALER_SELECTION") {
+      content = (
+        <DealerSelection
+          handAssignments={handAssignments}
+          dealerGuesses={dealerGuesses}
+          guessInput={guessInput}
+          setGuessInput={setGuessInput}
+          handleGuessSubmit={handleGuessSubmit}
+          currentUserId={currentUserId}
+        />
+      );
+    } else if (phase === "BIDDING") {
+      content = (
+        <BiddingPhase
+          handAssignments={handAssignments}
+          currentBidderIndex={currentBidderIndex}
+          bids={bids}
+          highestBid={highestBid}
+          currentUserId={currentUserId}
+          handleBid={handleBid}
+        />
+      );
+    } else if (phase === "DEALING") {
+      content = <div className="text-2xl text-white">Dealing Cards…</div>;
+    } else {
+      content = <div className="text-2xl text-white">{phase}</div>;
+    }
+
+    return (
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-40">
+        <motion.div
+          className="pointer-events-auto bg-black/80 text-white p-8 rounded-3xl shadow-2xl backdrop-blur-md"
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.92 }}
+        >
+          {content}
+        </motion.div>
+      </div>
+    );
+  };
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex items-center justify-center bg-black relative">
-      {/* CASINO TABLE */}
-      <div className="relative w-full max-w-5xl mx-auto aspect-square rounded-3xl shadow-xl overflow-hidden" style={{ backgroundColor: '#0a5f0a' }}>
-        {/* Felt Vignette */}
-        <div
-          className="absolute inset-0 rounded-3xl"
-          style={{
-            background: "radial-gradient(circle at center, rgba(15, 61, 15, 0.3), rgba(0, 0, 0, 0.6))",
-          }}
-        />
-
-        {/* PLAYER POSITIONS */}
-        {/* YOU */}
-        <div className="absolute bottom-6 flex flex-col items-center text-white">
-          <div className="text-xl font-bold mb-2">You</div>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="w-14 h-20 bg-white rounded shadow"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* ACROSS */}
-        <div className="absolute top-6 flex flex-col items-center text-white">
-          <div className="text-xl font-bold mb-2">Across</div>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="w-14 h-20 bg-gray-300 rounded shadow"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* LEFT */}
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 text-white flex flex-col items-center">
-          <div className="text-xl font-bold mb-3">Left</div>
-          <div className="flex flex-col gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="w-14 h-20 bg-gray-300 rounded shadow"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT */}
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 text-white flex flex-col items-center">
-          <div className="text-xl font-bold mb-3">Right</div>
-          <div className="flex flex-col gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="w-14 h-20 bg-gray-300 rounded shadow"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* CENTER TRICK */}
-        <div className="absolute text-white text-center">
-          <div className="text-lg opacity-70">Trick</div>
-        </div>
-
-        {/* PHASE OVERLAYS */}
-        <AnimatePresence>{renderPhaseOverlay(phase)}</AnimatePresence>
-      </div>
-    </div>
+    <>
+      <GameTable
+        handAssignments={handAssignments}
+        playerHands={playerHands}
+        currentUserId={currentUserId}
+        phase={phase}
+      />
+      
+      <AnimatePresence>{renderPhaseOverlay()}</AnimatePresence>
+    </>
   );
 };
 
-function renderPhaseOverlay(phase: string) {
-  const base = "absolute inset-0 flex items-center justify-center pointer-events-none";
-
-  const panel = (
-    <motion.div
-      className="pointer-events-auto bg-black/70 text-white p-8 rounded-3xl shadow-2xl backdrop-blur-xl"
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-    >
-      {phaseContent(phase)}
-    </motion.div>
-  );
-
-  return <div className={base}>{panel}</div>;
-}
-
-function phaseContent(phase: string) {
-  switch (phase) {
-    case "DEALER_SELECTION":
-      return <div className="text-2xl">Select the Dealer…</div>;
-    case "DEALING":
-      return <div className="text-2xl">Dealing Cards…</div>;
-    case "BIDDING":
-      return (
-        <div className="flex flex-col gap-4">
-          <div className="text-2xl font-bold mb-4">Place Your Bid</div>
-          <div className="flex gap-3 flex-wrap justify-center">
-            {[3, 4, 5, 6, 7].map((bid) => (
-              <button
-                key={bid}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-lg transition-colors"
-              >
-                {bid}
-              </button>
-            ))}
-          </div>
-          <button className="mt-2 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-bold transition-colors">
-            Pass
-          </button>
-        </div>
-      );
-    case "TRUMP_SELECTION":
-      return (
-        <div className="flex flex-col gap-4">
-          <div className="text-2xl font-bold mb-4">Choose Trump Suit</div>
-          <div className="flex gap-4 justify-center">
-            {['♥ Hearts', '♦ Diamonds', '♣ Clubs', '♠ Spades'].map((suit) => (
-              <button
-                key={suit}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-lg transition-colors"
-              >
-                {suit}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-4 justify-center mt-2">
-            <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors">
-              Uptown
-            </button>
-            <button className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-bold transition-colors">
-              Downtown
-            </button>
-          </div>
-        </div>
-      );
-    case "HAND_COMPLETE":
-      return <div className="text-2xl">Hand Complete</div>;
-    case "GAME_COMPLETE":
-      return <div className="text-2xl">Game Over</div>;
-    default:
-      return null;
-  }
-}
-
 export default Game;
-

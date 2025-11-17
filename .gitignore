@@ -3,10 +3,12 @@
 /bid-whist-web-app/frontend/dist/
 /bid-whist-web-app/server/.gradle/
 /bid-whist-web-app/server/build/
+.gradle/
 
 # Logs and temporary files
 /bid-whist-web-app/logs/
 *.log
+*.pid
 
 # OS files
 .DS_Store
