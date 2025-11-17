@@ -159,30 +159,37 @@ suspend fun handleDealerGuess(room: RoomState, handId: String, guess: Int, objec
         println("   Closest handId: $closestHandId")
         println("   Dealer index: $dealerIndex")
         
-        // Broadcast result and start dealing
-        val resultMessage = objectMapper.writeValueAsString(
+        // Update phase to reveal
+        room.gameState?.put("phase", "DEALER_REVEAL")
+        
+        // Broadcast reveal with all guesses and target number
+        val revealMessage = objectMapper.writeValueAsString(
             mapOf(
-                "type" to "DEALER_SELECTED",
+                "type" to "DEALER_REVEAL",
+                "phase" to "DEALER_REVEAL",
                 "targetNumber" to targetNumber,
                 "guesses" to dealerGuesses,
                 "dealerHandId" to closestHandId,
                 "dealerIndex" to dealerIndex,
-                "message" to "Dealer selected! Target was $targetNumber. Starting hand..."
+                "handAssignments" to handAssignments,
+                "message" to "Target was $targetNumber!"
             )
         )
-        println("📤 Broadcasting DEALER_SELECTED to ${room.connections.size} connections")
+        println("📤 Broadcasting DEALER_REVEAL to ${room.connections.size} connections")
         room.connections.values.forEach { session ->
             try {
-                session.send(Frame.Text(resultMessage))
+                session.send(Frame.Text(revealMessage))
                 println("   ✓ Sent to connection")
             } catch (e: Exception) {
-                println("   ✗ Error sending dealer result: ${e.message}")
+                println("   ✗ Error sending dealer reveal: ${e.message}")
             }
         }
         
+        // Wait for reveal animation
+        println("⏳ Waiting 4 seconds for reveal animation...")
+        kotlinx.coroutines.delay(4000)
+        
         // Deal the hand
-        println("⏳ Waiting 2 seconds before dealing...")
-        kotlinx.coroutines.delay(2000) // Give players time to see result
         println("🃏 Starting to deal new hand...")
         dealNewHand(room, objectMapper, dealerIndex)
     } else {
@@ -207,19 +214,44 @@ suspend fun handleDealerGuess(room: RoomState, handId: String, guess: Int, objec
 }
 
 suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMapper: ObjectMapper) {
-    val gameState = room.gameState ?: return
-    val handAssignments = gameState["handAssignments"] as? List<Map<String, String>> ?: return
-    val bids = gameState["bids"] as? MutableList<Map<String, Any>> ?: return
-    val currentBidderIndex = gameState["currentBidderIndex"] as? Int ?: return
+    println("🎯 handleBid called: handId=$handId, bidAmount=$bidAmount")
+    
+    val gameState = room.gameState ?: run {
+        println("   ❌ gameState is null")
+        return
+    }
+    val handAssignments = gameState["handAssignments"] as? List<Map<String, String>> ?: run {
+        println("   ❌ handAssignments is null or wrong type")
+        return
+    }
+    val bids = gameState["bids"] as? MutableList<Map<String, Any>> ?: run {
+        println("   ❌ bids is null or wrong type")
+        return
+    }
+    val currentBidderIndex = gameState["currentBidderIndex"] as? Int ?: run {
+        println("   ❌ currentBidderIndex is null")
+        return
+    }
     val highestBid = gameState["highestBid"] as? Int ?: 0
-    val dealerIndex = gameState["dealerIndex"] as? Int ?: return
-    val passedPlayers = gameState["passedPlayers"] as? MutableSet<Int> ?: return
+    val dealerIndex = gameState["dealerIndex"] as? Int ?: run {
+        println("   ❌ dealerIndex is null")
+        return
+    }
+    val passedPlayers = gameState["passedPlayers"] as? MutableSet<Int> ?: run {
+        println("   ❌ passedPlayers is null or wrong type")
+        return
+    }
     
     val bidderIndex = handAssignments.indexOfFirst { 
         "${it["playerId"]}_hand_${it["handIndex"]}" == handId 
     }
     
-    if (bidderIndex != currentBidderIndex) return
+    println("   bidderIndex=$bidderIndex, currentBidderIndex=$currentBidderIndex")
+    
+    if (bidderIndex != currentBidderIndex) {
+        println("   ❌ Not this player's turn! bidderIndex=$bidderIndex, currentBidderIndex=$currentBidderIndex")
+        return
+    }
     
     // Record the bid
     val bidEntry = mutableMapOf<String, Any>(
@@ -228,6 +260,20 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
     )
     
     if (bidAmount == "pass") {
+        // Check if this is the last player and everyone else has passed
+        if (passedPlayers.size == 3 && highestBid == 0) {
+            println("   ❌ Cannot pass - you are the last player and must make a bid!")
+            // Send error message back to client
+            val errorMessage = objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "BID_ERROR",
+                    "message" to "You cannot pass - you must make a bid!"
+                )
+            )
+            room.connections[handAssignments[bidderIndex]["playerId"]]?.send(Frame.Text(errorMessage))
+            return
+        }
+        
         bidEntry["amount"] = "pass"
         passedPlayers.add(bidderIndex)
     } else {
@@ -254,11 +300,31 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
     // Check if bidding is complete - need at least 4 bids AND only 1 active bidder remaining
     val activeBidders = (0..3).filter { it !in passedPlayers }
     val allHandsHaveBid = bids.size >= 4
+    val currentHighestBid = gameState["highestBid"] as? Int ?: 0
+    
+    println("📊 Bidding status: bids=${bids.size}, activeBidders=${activeBidders.size}, passedPlayers=$passedPlayers")
+    println("   allHandsHaveBid=$allHandsHaveBid, highestBid=$currentHighestBid")
     
     if (allHandsHaveBid && activeBidders.size == 1) {
         // Bidding complete
-        val winnerHandId = gameState["bidWinnerHandId"] as? String ?: return
-        val winnerIndex = gameState["bidWinnerIndex"] as? Int ?: return
+        println("✅ Bidding complete!")
+        
+        // Make sure someone actually made a bid (not all passes)
+        if (currentHighestBid == 0) {
+            println("   ❌ No one made a bid! highestBid is 0")
+            return
+        }
+        
+        val winnerHandId = gameState["bidWinnerHandId"] as? String ?: run {
+            println("   ❌ bidWinnerHandId is null!")
+            return
+        }
+        val winnerIndex = gameState["bidWinnerIndex"] as? Int ?: run {
+            println("   ❌ bidWinnerIndex is null!")
+            return
+        }
+        
+        println("   Winner: handId=$winnerHandId, index=$winnerIndex, bid=$currentHighestBid")
         
         gameState["phase"] = "TRUMP_SELECTION"
         
@@ -268,7 +334,7 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
                 "phase" to "TRUMP_SELECTION",
                 "bidWinnerHandId" to winnerHandId,
                 "bidWinnerIndex" to winnerIndex,
-                "winningBid" to highestBid,
+                "winningBid" to currentHighestBid,
                 "bids" to bids,
                 "message" to "Bid winner selects trump!"
             )
@@ -288,22 +354,29 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
         }
         gameState["currentBidderIndex"] = nextBidder
         
+        println("📤 Moving to next bidder: $nextBidder")
+        
         val bidUpdate = objectMapper.writeValueAsString(
             mapOf(
                 "type" to "BID_UPDATE",
                 "phase" to "BIDDING",
                 "bids" to bids,
                 "currentBidderIndex" to nextBidder,
-                "highestBid" to highestBid,
+                "highestBid" to currentHighestBid,
                 "handAssignments" to handAssignments,
                 "playerHands" to gameState["playerHands"]
             )
         )
+        
+        println("   Sending BID_UPDATE to ${room.connections.size} connections")
+        println("   Message: $bidUpdate")
+        
         room.connections.values.forEach { session ->
             try {
                 session.send(Frame.Text(bidUpdate))
+                println("   ✓ Sent to connection")
             } catch (e: Exception) {
-                println("Error sending bid update: ${e.message}")
+                println("   ✗ Error sending bid update: ${e.message}")
             }
         }
     }
@@ -891,8 +964,12 @@ fun Application.module() {
                                     }
                                 }
                                 "PLACE_BID" -> {
+                                    println("🎰 PLACE_BID message received")
                                     if (wsMessage.handId != null && wsMessage.bidAmount != null) {
+                                        println("   handId: ${wsMessage.handId}, bidAmount: ${wsMessage.bidAmount}")
                                         handleBid(room, wsMessage.handId, wsMessage.bidAmount, objectMapper)
+                                    } else {
+                                        println("   ❌ Missing handId or bidAmount! handId=${wsMessage.handId}, bidAmount=${wsMessage.bidAmount}")
                                     }
                                 }
                                 "SELECT_TRUMP" -> {
@@ -907,7 +984,8 @@ fun Application.module() {
                                 }
                             }
                         } catch (e: Exception) {
-                            println("Error parsing message: ${e.message}")
+                            println("❌ Error parsing message: ${e.message}")
+                            e.printStackTrace()
                         }
                     }
                 }

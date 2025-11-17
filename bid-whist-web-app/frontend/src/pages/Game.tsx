@@ -72,8 +72,14 @@ const Game = () => {
     if (data.type === "DEALER_GUESS_UPDATE") {
       setDealerGuesses(data.guesses || {});
     }
-    if (data.type === "DEALER_SELECTED") {
+    if (data.type === "DEALER_REVEAL") {
       setDealerGuesses(data.guesses || {});
+      // Store reveal data globally for the reveal component
+      (window as any).dealerRevealData = {
+        targetNumber: data.targetNumber,
+        guesses: data.guesses,
+        dealerHandId: data.dealerHandId
+      };
     }
   }, [messages]);
 

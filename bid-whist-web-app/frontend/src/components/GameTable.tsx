@@ -32,6 +32,8 @@ export default function GameTable({
 }: GameTableProps) {
   const showCards = phase === "BIDDING" || phase === "PLAYING";
   const [bidInput, setBidInput] = React.useState<string>("");
+  const [sortedCards, setSortedCards] = React.useState<any[]>([]);
+  const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
 
   /** Find user’s hands */
   const myHandAssignments = handAssignments.filter(
@@ -46,31 +48,78 @@ export default function GameTable({
     myCards.push(...(playerHands[handId] || []));
   }
 
+  // Sort cards by suit and rank (default order)
+  React.useEffect(() => {
+    if (myCards.length > 0 && sortedCards.length === 0) {
+      const suitOrder = { hearts: 0, spades: 1, diamonds: 2, clubs: 3 };
+      const rankOrder = { 'A': 13, 'K': 12, 'Q': 11, 'J': 10, '10': 9, '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1 };
+      
+      const sorted = [...myCards].sort((a, b) => {
+        const suitDiff = suitOrder[a.suit as keyof typeof suitOrder] - suitOrder[b.suit as keyof typeof suitOrder];
+        if (suitDiff !== 0) return suitDiff;
+        return (rankOrder[b.rank as keyof typeof rankOrder] || 0) - (rankOrder[a.rank as keyof typeof rankOrder] || 0);
+      });
+      
+      setSortedCards(sorted);
+    } else if (myCards.length === 0) {
+      setSortedCards([]);
+    }
+  }, [myCards.length, playerHands]);
+
+  const displayCards = sortedCards.length > 0 ? sortedCards : myCards;
+
+  // Drag and drop handlers
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    
+    const newCards = [...displayCards];
+    const draggedCard = newCards[draggedIndex];
+    newCards.splice(draggedIndex, 1);
+    newCards.splice(index, 0, draggedCard);
+    
+    setSortedCards(newCards);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDraggedIndex(null);
+  };
+
   /** Helper to get player name by position */
   const getPlayerName = (position: "ACROSS" | "LEFT" | "RIGHT") => {
-    // 4-seat mapping: [You, Left, Across, Right]
-    const others = handAssignments
-      .filter((h) => h.playerId !== currentUserId)
-      .reduce((acc: any, h: any) => {
-        if (!acc[h.playerId]) acc[h.playerId] = [];
-        acc[h.playerId].push(h);
-        return acc;
-      }, {});
-
-    const ids = Object.keys(others);
-
-    if (ids.length !== 3) return position; // Fallback
-
-    const [left, across, right] = ids;
-
+    if (handAssignments.length !== 4) return position;
+    
+    // Find my hand index
+    const myHandIndex = handAssignments.findIndex((h: any) => h.playerId === currentUserId);
+    if (myHandIndex === -1) return position;
+    
+    // Map positions relative to me (index 0 = me, 1 = left, 2 = across, 3 = right)
+    let targetIndex;
     switch (position) {
       case "LEFT":
-        return others[left][0]?.playerName || "Left";
+        targetIndex = (myHandIndex + 1) % 4;
+        break;
       case "ACROSS":
-        return others[across][0]?.playerName || "Across";
+        targetIndex = (myHandIndex + 2) % 4;
+        break;
       case "RIGHT":
-        return others[right][0]?.playerName || "Right";
+        targetIndex = (myHandIndex + 3) % 4;
+        break;
+      default:
+        return position;
     }
+    
+    return handAssignments[targetIndex]?.playerName || position;
   };
 
   return (
@@ -104,9 +153,21 @@ export default function GameTable({
         {/* YOU (Bottom) */}
         <div className="absolute bottom-[2vh] left-1/2 -translate-x-1/2 flex flex-col items-center text-white">
           <div className="flex mb-2">
-            {myCards.length > 0 ? (
-              myCards.map((card: any, idx: number) => (
-                <div key={idx} className="-ml-6 first:ml-0">
+            {displayCards.length > 0 ? (
+              displayCards.map((card: any, idx: number) => (
+                <div 
+                  key={`${card.suit}-${card.rank}-${idx}`} 
+                  className="-ml-6 first:ml-0 cursor-move"
+                  draggable
+                  onDragStart={() => handleDragStart(idx)}
+                  onDragOver={(e) => handleDragOver(e, idx)}
+                  onDragEnd={handleDragEnd}
+                  onDrop={handleDrop}
+                  style={{ 
+                    opacity: draggedIndex === idx ? 0.5 : 1,
+                    transition: 'opacity 0.2s'
+                  }}
+                >
                   <Card suit={card.suit} rank={card.rank} faceUp width={60} height={90} />
                 </div>
               ))
@@ -114,61 +175,63 @@ export default function GameTable({
               showCards && <div className="text-gray-400">No cards</div>
             )}
           </div>
-          <div className="text-xl font-bold mt-2">You</div>
+          <div className="text-2xl font-bold mt-2" style={{ color: '#ffffff' }}>
+            {myHandAssignments.length > 0 ? `${myHandAssignments[0].playerName} (You)` : 'You'}
+          </div>
         </div>
 
         {/* ACROSS (Top) */}
-{showCards && (
-  <div className="absolute top-[2vh] left-1/2 -translate-x-1/2 flex flex-col items-center text-white">
-    <div className="text-xl font-bold mb-2">{getPlayerName("ACROSS")}</div>
+        <div className="absolute top-[2vh] left-1/2 -translate-x-1/2 flex flex-col items-center text-white">
+          <div className="text-2xl font-bold mb-2" style={{ color: '#ffffff' }}>{getPlayerName("ACROSS")}</div>
 
-    <div className="flex">
-      {Array.from({ length: 13 }).map((_, i) => (
-        <div key={i} className="-ml-10 first:ml-0"> 
-          <Card faceUp={false} width={60} height={90} />
+          {showCards && (
+            <div className="flex">
+              {Array.from({ length: 13 }).map((_, i) => (
+                <div key={i} className="-ml-10 first:ml-0"> 
+                  <Card faceUp={false} width={60} height={90} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ))}
-    </div>
-  </div>
-)}
 
         {/* LEFT */}
-{showCards && (
-  <div className="absolute left-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
-    <div className="text-xl font-bold mb-2 rotate-180 writing-vertical-rl">
-      {getPlayerName("LEFT")}
-    </div>
-
-    <div className="flex flex-col items-center">
-      {Array.from({ length: 13 }).map((_, i) => (
-        <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}> 
-          <div className="transform -rotate-90">
-            <Card faceUp={false} width={60} height={90} />
+        <div className="absolute left-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
+          <div className="text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: '#ffffff' }}>
+            {getPlayerName("LEFT")}
           </div>
+
+          {showCards && (
+            <div className="flex flex-col items-center">
+              {Array.from({ length: 13 }).map((_, i) => (
+                <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}> 
+                  <div className="transform -rotate-90">
+                    <Card faceUp={false} width={60} height={90} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ))}
-    </div>
-  </div>
-)}
 
         {/* RIGHT */}
-{showCards && (
-  <div className="absolute right-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
-    <div className="text-xl font-bold mb-2 writing-vertical-rl">
-      {getPlayerName("RIGHT")}
-    </div>
-
-    <div className="flex flex-col items-center">
-      {Array.from({ length: 13 }).map((_, i) => (
-        <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}>
-          <div className="transform rotate-90">
-            <Card faceUp={false} width={60} height={90} />
+        <div className="absolute right-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
+          <div className="text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: '#ffffff' }}>
+            {getPlayerName("RIGHT")}
           </div>
+
+          {showCards && (
+            <div className="flex flex-col items-center">
+              {Array.from({ length: 13 }).map((_, i) => (
+                <div key={i} style={{ marginTop: i === 0 ? 0 : '-50px' }}>
+                  <div className="transform rotate-90">
+                    <Card faceUp={false} width={60} height={90} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ))}
-    </div>
-  </div>
-)}
 
         {/* CENTER TRICK */}
         {phase === "PLAYING" && (
@@ -178,6 +241,73 @@ export default function GameTable({
             </div>
           </div>
         )}
+
+        {/* DEALER REVEAL OVERLAY */}
+        {phase === "DEALER_REVEAL" && (() => {
+          const targetNumber = (window as any).dealerRevealData?.targetNumber;
+          const guesses = (window as any).dealerRevealData?.guesses || {};
+          const dealerHandId = (window as any).dealerRevealData?.dealerHandId;
+          
+          return (
+            <div className="absolute inset-0 flex items-center justify-center z-10">
+              <div className="text-white p-10 rounded-3xl shadow-2xl max-w-5xl max-h-[85vh] overflow-y-auto border-4 border-white/20" style={{ backgroundColor: 'rgba(17, 24, 39, 0.97)', fontSize: '1.1rem' }}>
+                <div className="space-y-6">
+                  <h2 className="text-4xl font-bold text-center" style={{ color: '#ffffff' }}>Dealer Selected!</h2>
+                  
+                  <div className="text-center">
+                    <div className="text-2xl mb-4" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                      Target Number:
+                    </div>
+                    <div className="text-6xl font-bold mb-6" style={{ color: '#fbbf24' }}>
+                      {targetNumber}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    {handAssignments.map((hand: any) => {
+                      const handId = `${hand.playerId}_hand_${hand.handIndex}`;
+                      const guess = guesses[handId];
+                      const isDealer = handId === dealerHandId;
+                      const diff = Math.abs(guess - targetNumber);
+                      
+                      // Find Faye's team
+                      const fayeHand = handAssignments.find((h: any) => h.playerName?.toLowerCase() === 'faye');
+                      const fayeTeam = fayeHand?.team;
+                      const nameColor = hand.team === fayeTeam ? '#c4b5fd' : '#60a5fa';
+
+                      return (
+                        <div
+                          key={handId}
+                          className={`p-4 rounded-lg border-2 ${
+                            isDealer
+                              ? "border-green-400 bg-green-900/30"
+                              : "border-white/30 bg-white/10"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div className="font-bold text-lg" style={{ color: nameColor }}>
+                              {hand.playerName?.toLowerCase() === 'faye' && '💜 '}
+                              {hand.playerName}
+                              {isDealer && <span className="ml-2 text-green-400">👑 DEALER</span>}
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold" style={{ color: '#ffffff' }}>
+                                {guess}
+                              </div>
+                              <div className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.7)' }}>
+                                {diff === 0 ? 'Perfect!' : `Off by ${diff}`}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* DEALER SELECTION OVERLAY */}
         {phase === "DEALER_SELECTION" && (
@@ -194,6 +324,14 @@ export default function GameTable({
                     const handId = `${hand.playerId}_hand_${hand.handIndex}`;
                     const isMine = hand.playerId === currentUserId;
                     const done = dealerGuesses[handId] !== undefined;
+                    
+                    // Find Faye's team
+                    const fayeHand = handAssignments.find((h: any) => h.playerName?.toLowerCase() === 'faye');
+                    const fayeTeam = fayeHand?.team;
+                    const isFayeTeam = hand.team === fayeTeam;
+                    
+                    // Color: purple for Faye's team, blue for opposing team
+                    const nameColor = isFayeTeam ? '#c4b5fd' : '#60a5fa';
 
                     return (
                       <div
@@ -206,7 +344,7 @@ export default function GameTable({
                       >
                         <div className="flex justify-between items-center">
                           <div>
-                            <div className="font-bold" style={{ color: hand.playerName?.toLowerCase() === 'faye' ? '#c4b5fd' : '#fbbf24' }}>
+                            <div className="font-bold" style={{ color: nameColor }}>
                               {hand.playerName?.toLowerCase() === 'faye' && '💜 '}
                               {hand.playerName} — Hand {parseInt(hand.handIndex) + 1}
                               {isMine && <span className="text-yellow-300 ml-2">(You)</span>}
@@ -269,6 +407,14 @@ export default function GameTable({
           const minBid = highestBid + 1;
           const bidValue = parseInt(bidInput);
           const canBid = bidValue >= minBid && bidValue <= 7;
+          
+          // Find Faye's team for color coding
+          const fayeHand = handAssignments.find((h: any) => h.playerName?.toLowerCase() === 'faye');
+          const fayeTeam = fayeHand?.team;
+          
+          // Check if everyone else has passed (can't pass if you're the last one)
+          const passCount = bids.filter((b: any) => b.amount === "pass").length;
+          const canPass = !(passCount === 3 && highestBid === 0);
 
           return (
             <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -279,7 +425,7 @@ export default function GameTable({
                   {/* Current Bidder */}
                   <div className="text-center">
                     <div className="text-xl" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>Current Bidder:</div>
-                    <div className="text-3xl font-bold" style={{ color: currentBidder?.playerName?.toLowerCase() === 'faye' ? '#c4b5fd' : '#fbbf24' }}>
+                    <div className="text-3xl font-bold" style={{ color: currentBidder?.team === fayeTeam ? '#c4b5fd' : '#60a5fa' }}>
                       {currentBidder?.playerName?.toLowerCase() === 'faye' && '💜 '}
                       {currentBidder?.playerName} - Hand {parseInt(currentBidder?.handIndex) + 1}
                       {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
@@ -323,7 +469,8 @@ export default function GameTable({
                           </button>
                           <button
                             onClick={() => handleBid?.(currentHandId, "pass")}
-                            className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded font-bold text-lg"
+                            disabled={!canPass}
+                            className="px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-lg"
                           >
                             Pass
                           </button>
@@ -350,12 +497,13 @@ export default function GameTable({
                       ) : (
                         bids.map((bid: any, idx: number) => {
                           const hand = handAssignments[bid.handIndex];
+                          const handColor = hand?.team === fayeTeam ? '#c4b5fd' : '#60a5fa';
                           return (
                             <div
                               key={idx}
                               className="p-3 bg-white/10 rounded border border-white/30"
                             >
-                              <span className="font-bold" style={{ color: hand?.playerName?.toLowerCase() === 'faye' ? '#c4b5fd' : '#fbbf24' }}>
+                              <span className="font-bold" style={{ color: handColor }}>
                                 {hand?.playerName?.toLowerCase() === 'faye' && '💜 '}
                                 {hand?.playerName} - Hand {parseInt(hand?.handIndex) + 1}:
                               </span>
