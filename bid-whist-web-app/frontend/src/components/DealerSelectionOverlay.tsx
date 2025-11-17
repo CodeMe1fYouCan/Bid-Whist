@@ -1,18 +1,15 @@
 import React from "react";
+import type { DealerPhaseState } from "../types/gamePhases";
 
-interface DealerSelectionOverlayProps {
+interface DealerSelectionOverlayProps extends DealerPhaseState {
   handAssignments: any[];
-  dealerGuesses: Record<string, number>;
-  guessInput: Record<string, string>;
-  setGuessInput?: (input: Record<string, string>) => void;
-  handleGuessSubmit?: (handId: string) => void;
   currentUserId: string | null;
 }
 
 export default function DealerSelectionOverlay({
   handAssignments,
-  dealerGuesses,
-  guessInput,
+  dealerGuesses = {},
+  guessInput = {},
   setGuessInput,
   handleGuessSubmit,
   currentUserId,

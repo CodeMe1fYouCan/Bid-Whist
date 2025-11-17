@@ -1,12 +1,12 @@
 import React from "react";
 import Card from "./Card";
+import type { TrumpPhaseState } from "../types/gamePhases";
 
-interface TrumpSelectionOverlayProps {
+interface TrumpSelectionOverlayProps extends TrumpPhaseState {
   bidWinnerHandId: string;
   currentBidderIndex: number;
   handAssignments: any[];
   currentUserId: string | null;
-  handleTrumpSelection?: (trumpSuit: string) => void;
 }
 
 export default function TrumpSelectionOverlay({

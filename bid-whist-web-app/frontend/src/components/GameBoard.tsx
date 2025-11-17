@@ -1,82 +1,33 @@
 import React from "react";
-import Card from "./Card";
 import Table from "./Table";
 import DealerReveal from "./DealerReveal";
 import DealerSelectionOverlay from "./DealerSelectionOverlay";
 import BiddingPhaseOverlay from "./BiddingPhaseOverlay";
 import TrumpSelectionOverlay from "./TrumpSelectionOverlay";
-import PlayingPhaseOverlay from "./PlayingPhaseOverlay";
 import HandCompleteOverlay from "./HandCompleteOverlay";
+import type {
+  CoreGameState,
+  DealerPhaseState,
+  BiddingPhaseState,
+  TrumpPhaseState,
+  PlayingPhaseState,
+  CompletePhaseState,
+} from "../types/gamePhases";
 
-interface GameBoardProps {
-  handAssignments: any[];
-  playerHands: Record<string, any[]>;
-  currentUserId: string | null;
-  phase: string;
-  dealerGuesses?: Record<string, number>;
-  guessInput?: Record<string, string>;
-  setGuessInput?: (input: Record<string, string>) => void;
-  handleGuessSubmit?: (handId: string) => void;
-  currentBidderIndex?: number;
-  bids?: any[];
-  highestBid?: number;
-  dealerIndex?: number;
-  handleBid?: (handId: string, bidAmount: number | string) => void;
-  handleTrumpSelection?: (trumpSuit: string) => void;
-  trumpSuit?: string;
-  currentPlayerIndex?: number;
-  currentTrick?: any[];
-  tricksWon?: Record<string, number>;
-  trickNumber?: number;
-  handleCardPlay?: (handId: string, card: any) => void;
-  trickWinnerHandId?: string | null;
-  showTrickComplete?: boolean;
-  lastTrick?: any[];
-  lastTrickWinner?: string | null;
-  bidWinnerHandId?: string;
-  winningBid?: number;
-  handCompleteData?: any;
-  readyPlayers?: string[];
-  totalPoints?: Record<string, number>;
-  teamScores?: Record<string, number>;
-  onHandCompleteReady?: () => void;
-}
+// Combined props interface
+interface GameBoardProps
+  extends CoreGameState,
+    DealerPhaseState,
+    BiddingPhaseState,
+    TrumpPhaseState,
+    PlayingPhaseState,
+    CompletePhaseState {}
 
-export default function GameBoard({
-  handAssignments,
-  playerHands,
-  currentUserId,
-  phase,
-  dealerGuesses = {},
-  guessInput = {},
-  setGuessInput,
-  handleGuessSubmit,
-  currentBidderIndex = 0,
-  bids = [],
-  highestBid = 0,
-  dealerIndex = 0,
-  handleBid,
-  handleTrumpSelection,
-  trumpSuit = "",
-  currentPlayerIndex = 0,
-  currentTrick = [],
-  tricksWon = { Us: 0, Them: 0 },
-  trickNumber = 1,
-  handleCardPlay,
-  trickWinnerHandId = null,
-  showTrickComplete = false,
-  lastTrick = [],
-  lastTrickWinner = null,
-  bidWinnerHandId = "",
-  winningBid = 0,
-  handCompleteData = null,
-  readyPlayers = [],
-  totalPoints = { Us: 0, Them: 0 },
-  teamScores = { Us: 0, Them: 0 },
-  onHandCompleteReady,
-}: GameBoardProps) {
+export default function GameBoard(props: GameBoardProps) {
+  // Destructure only frequently accessed props to avoid repetitive props.x
+  const { handAssignments, playerHands, currentUserId, phase } = props;
+  
   const showCards = phase === "BIDDING" || phase === "PLAYING" || phase === "TRUMP_SELECTION" || phase === "HAND_COMPLETE";
-  const [bidInput, setBidInput] = React.useState<string>("");
   const [sortedCards, setSortedCards] = React.useState<Record<string, any[]>>({});
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
   const [delayedActiveHandIndex, setDelayedActiveHandIndex] = React.useState<number>(0);
@@ -91,7 +42,7 @@ export default function GameBoard({
   // During bidding/playing, show the current active hand if it belongs to the user
   let targetActiveHandIndex = 0; // Default to first hand
   if ((phase === "BIDDING" || phase === "TRUMP_SELECTION") && handAssignments.length > 0) {
-    const currentHand = handAssignments[currentBidderIndex];
+    const currentHand = handAssignments[props.currentBidderIndex ?? 0];
     if (currentHand && currentHand.playerId === currentUserId) {
       // Find which of my hands is currently active
       targetActiveHandIndex = myHandAssignments.findIndex(
@@ -100,8 +51,8 @@ export default function GameBoard({
       if (targetActiveHandIndex === -1) targetActiveHandIndex = 0;
     }
   } else if (phase === "PLAYING" && handAssignments.length > 0) {
-    const currentHand = handAssignments[currentPlayerIndex];
-    console.log("🎮 PLAYING phase - currentPlayerIndex:", currentPlayerIndex, "currentHand:", currentHand);
+    const currentHand = handAssignments[props.currentPlayerIndex ?? 0];
+    console.log("🎮 PLAYING phase - currentPlayerIndex:", props.currentPlayerIndex, "currentHand:", currentHand);
     if (currentHand && currentHand.playerId === currentUserId) {
       // Find which of my hands is currently active based on the global currentPlayerIndex
       // handIndex is a string, so convert for comparison
@@ -117,7 +68,7 @@ export default function GameBoard({
       // Not my turn - look ahead to find the next hand that belongs to me
       let foundNextHand = false;
       for (let i = 1; i <= 4; i++) {
-        const nextPlayerIndex = (currentPlayerIndex + i) % 4;
+        const nextPlayerIndex = ((props.currentPlayerIndex ?? 0) + i) % 4;
         const nextHand = handAssignments[nextPlayerIndex];
         if (nextHand && nextHand.playerId === currentUserId) {
           // Found my next hand!
@@ -149,7 +100,7 @@ export default function GameBoard({
       }
 
       // Determine if we should delay the switch
-      const currentHand = handAssignments[currentPlayerIndex];
+      const currentHand = handAssignments[props.currentPlayerIndex ?? 0];
       const isMyTurn = currentHand && currentHand.playerId === currentUserId;
       
       // Apply delay when:
@@ -181,7 +132,7 @@ export default function GameBoard({
         clearTimeout(handSwitchTimeoutRef.current);
       }
     };
-  }, [targetActiveHandIndex, delayedActiveHandIndex, currentPlayerIndex, handAssignments, currentUserId, myHandAssignments.length, phase]);
+  }, [targetActiveHandIndex, delayedActiveHandIndex, props.currentPlayerIndex, handAssignments, currentUserId, myHandAssignments.length, phase]);
 
   const activeHandIndex = delayedActiveHandIndex;
 
@@ -224,19 +175,19 @@ export default function GameBoard({
 
   // Check if it's my turn to play
   const isMyTurnToPlay = phase === "PLAYING" && handAssignments.length > 0 && 
-    handAssignments[currentPlayerIndex]?.playerId === currentUserId;
+    handAssignments[props.currentPlayerIndex ?? 0]?.playerId === currentUserId;
 
   // Handle double-click to play card during playing phase
   const handleCardDoubleClick = (card: any) => {
-    if (phase === "PLAYING" && isMyTurnToPlay && handleCardPlay && activeHandId) {
+    if (phase === "PLAYING" && isMyTurnToPlay && props.handleCardPlay && activeHandId) {
       console.log("🎴 Playing card:", {
         activeHandId,
         activeHand,
-        currentPlayerIndex,
+        currentPlayerIndex: props.currentPlayerIndex,
         handAssignments,
         card
       });
-      handleCardPlay(activeHandId, card);
+      props.handleCardPlay(activeHandId, card);
       // Check if next player is also mine and switch proactively
       scheduleHandSwitchAfterPlay();
       // Don't remove locally - wait for server to send updated playerHands
@@ -284,7 +235,7 @@ export default function GameBoard({
     if (myHandAssignments.length <= 1) return; // Only one hand, no need to switch
     
     // Check if the next player in turn order is also controlled by me
-    const nextPlayerIndex = (currentPlayerIndex + 1) % 4;
+    const nextPlayerIndex = ((props.currentPlayerIndex ?? 0) + 1) % 4;
     const nextHand = handAssignments[nextPlayerIndex];
     
     if (nextHand && nextHand.playerId === currentUserId) {
@@ -320,9 +271,9 @@ export default function GameBoard({
       draggedCard,
       activeHandId
     });
-    if (phase === "PLAYING" && isMyTurnToPlay && draggedCard && handleCardPlay && activeHandId) {
+    if (phase === "PLAYING" && isMyTurnToPlay && draggedCard && props.handleCardPlay && activeHandId) {
       console.log("✅ Playing card via drop");
-      handleCardPlay(activeHandId, draggedCard);
+      props.handleCardPlay(activeHandId, draggedCard);
       // Check if next player is also mine and switch proactively
       scheduleHandSwitchAfterPlay();
       // Don't remove locally - wait for server to send updated playerHands
@@ -331,7 +282,7 @@ export default function GameBoard({
         phase,
         isMyTurnToPlay,
         hasDraggedCard: !!draggedCard,
-        hasHandleCardPlay: !!handleCardPlay,
+        hasHandleCardPlay: !!props.handleCardPlay,
         activeHandId
       });
     }
@@ -388,7 +339,7 @@ export default function GameBoard({
         handAssignments={handAssignments}
         playerHands={playerHands}
         currentUserId={currentUserId}
-        currentPlayerIndex={currentPlayerIndex || 0}
+        currentPlayerIndex={props.currentPlayerIndex ?? 0}
         activeHand={activeHand}
         displayCards={displayCards}
         draggedIndex={draggedIndex}
@@ -399,18 +350,18 @@ export default function GameBoard({
         handleDrop={handleDrop}
         handleCardDoubleClick={handleCardDoubleClick}
         getPlayerName={getPlayerName}
-        trumpSuit={trumpSuit}
-        trickNumber={trickNumber}
-        tricksWon={tricksWon}
-        bidWinnerHandId={bidWinnerHandId}
-        winningBid={winningBid}
-        lastTrick={lastTrick}
-        lastTrickWinner={lastTrickWinner}
-        currentTrick={currentTrick}
-        trickWinnerHandId={trickWinnerHandId}
-        showTrickComplete={showTrickComplete}
+        trumpSuit={props.trumpSuit}
+        trickNumber={props.trickNumber}
+        tricksWon={props.tricksWon}
+        bidWinnerHandId={props.bidWinnerHandId}
+        winningBid={props.winningBid}
+        lastTrick={props.lastTrick}
+        lastTrickWinner={props.lastTrickWinner}
+        currentTrick={props.currentTrick}
+        trickWinnerHandId={props.trickWinnerHandId}
+        showTrickComplete={props.showTrickComplete}
         handleDropOnCenter={handleDropOnCenter}
-        teamScores={teamScores}
+        teamScores={props.teamScores}
       />
 
       {/* DEALER REVEAL OVERLAY */}
@@ -434,11 +385,11 @@ export default function GameBoard({
       {phase === "DEALER_SELECTION" && (
         <DealerSelectionOverlay
           handAssignments={handAssignments}
-          dealerGuesses={dealerGuesses}
-          guessInput={guessInput}
-          setGuessInput={setGuessInput}
-          handleGuessSubmit={handleGuessSubmit}
           currentUserId={currentUserId}
+          dealerGuesses={props.dealerGuesses}
+          guessInput={props.guessInput}
+          setGuessInput={props.setGuessInput}
+          handleGuessSubmit={props.handleGuessSubmit}
         />
       )}
 
@@ -446,36 +397,37 @@ export default function GameBoard({
       {phase === "BIDDING" && (
         <BiddingPhaseOverlay
           handAssignments={handAssignments}
-          currentBidderIndex={currentBidderIndex || 0}
-          bids={bids || []}
-          highestBid={highestBid || 0}
-          dealerIndex={dealerIndex || 0}
           currentUserId={currentUserId}
-          handleBid={handleBid}
+          currentBidderIndex={props.currentBidderIndex ?? 0}
+          bids={props.bids ?? []}
+          highestBid={props.highestBid ?? 0}
+          dealerIndex={props.dealerIndex ?? 0}
+          handleBid={props.handleBid}
         />
       )}
 
       {/* TRUMP SELECTION OVERLAY */}
       {phase === "TRUMP_SELECTION" && (
         <TrumpSelectionOverlay
-          bidWinnerHandId={bidWinnerHandId || ""}
-          currentBidderIndex={currentBidderIndex || 0}
           handAssignments={handAssignments}
           currentUserId={currentUserId}
-          handleTrumpSelection={handleTrumpSelection}
+          bidWinnerHandId={props.bidWinnerHandId ?? ""}
+          currentBidderIndex={props.currentBidderIndex ?? 0}
+          handleTrumpSelection={props.handleTrumpSelection}
+          trumpSuit={props.trumpSuit}
         />
       )}
 
       {/* HAND COMPLETE / GAME COMPLETE OVERLAY */}
-      {(phase === "HAND_COMPLETE" || phase === "GAME_COMPLETE") && handCompleteData && (
+      {(phase === "HAND_COMPLETE" || phase === "GAME_COMPLETE") && props.handCompleteData && (
         <HandCompleteOverlay
           phase={phase}
-          handCompleteData={handCompleteData}
           handAssignments={handAssignments}
           currentUserId={currentUserId}
-          readyPlayers={readyPlayers || []}
-          totalPoints={totalPoints || { Us: 0, Them: 0 }}
-          onHandCompleteReady={onHandCompleteReady}
+          handCompleteData={props.handCompleteData}
+          readyPlayers={props.readyPlayers ?? []}
+          totalPoints={props.totalPoints ?? { Us: 0, Them: 0 }}
+          onHandCompleteReady={props.onHandCompleteReady}
         />
       )}
     </div>

@@ -1,13 +1,13 @@
 import React from "react";
+import type { CompletePhaseState } from "../types/gamePhases";
 
-interface HandCompleteOverlayProps {
+interface HandCompleteOverlayProps extends Omit<CompletePhaseState, 'teamScores'> {
   phase: string;
-  handCompleteData: any;
   handAssignments: any[];
   currentUserId: string | null;
+  handCompleteData: any;
   readyPlayers: string[];
   totalPoints: Record<string, number>;
-  onHandCompleteReady?: () => void;
 }
 
 export default function HandCompleteOverlay({

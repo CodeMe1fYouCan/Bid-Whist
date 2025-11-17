@@ -1,13 +1,13 @@
 import React from "react";
+import type { BiddingPhaseState } from "../types/gamePhases";
 
-interface BiddingPhaseOverlayProps {
+interface BiddingPhaseOverlayProps extends Omit<BiddingPhaseState, 'bidWinnerHandId' | 'winningBid'> {
   handAssignments: any[];
+  currentUserId: string | null;
   currentBidderIndex: number;
   bids: any[];
   highestBid: number;
   dealerIndex: number;
-  currentUserId: string | null;
-  handleBid?: (handId: string, bidAmount: number | string) => void;
 }
 
 export default function BiddingPhaseOverlay({
