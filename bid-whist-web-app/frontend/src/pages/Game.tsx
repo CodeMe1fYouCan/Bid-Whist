@@ -6,6 +6,7 @@ import DealerSelection from "../components/DealerSelection";
 import BiddingPhase from "../components/BiddingPhase";
 import TrumpSelection from "../components/TrumpSelection";
 import GameTable from "../components/GameTable";
+import HandComplete from "../components/HandComplete";
 
 const Game = () => {
   const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
@@ -21,6 +22,7 @@ const Game = () => {
   const [currentBidderIndex, setCurrentBidderIndex] = useState<number>(0);
   const [bids, setBids] = useState<any[]>([]);
   const [highestBid, setHighestBid] = useState<number>(0);
+  const [dealerIndex, setDealerIndex] = useState<number>(0);
   const [bidWinnerHandId, setBidWinnerHandId] = useState<string>("");
   const [bidWinnerIndex, setBidWinnerIndex] = useState<number>(0);
   const [winningBid, setWinningBid] = useState<number>(0);
@@ -33,8 +35,12 @@ const Game = () => {
   const [showTrickComplete, setShowTrickComplete] = useState(false);
   const [lastTrick, setLastTrick] = useState<any[]>([]);
   const [lastTrickWinner, setLastTrickWinner] = useState<string | null>(null);
+  const [handCompleteData, setHandCompleteData] = useState<any>(null);
+  const [readyPlayers, setReadyPlayers] = useState<string[]>([]);
+  const [totalPoints, setTotalPoints] = useState<Record<string, number>>({ Us: 0, Them: 0 });
   
   const joinedRef = useRef(false);
+  const currentTrickRef = useRef<any[]>([]);
 
   const { sendMessage, messages, isConnected } = useWebSocket(
     `ws://localhost:8080/room/${roomCode}`
@@ -77,10 +83,15 @@ const Game = () => {
     if (data.phase) setPhase(data.phase);
     if (data.players) setPlayers(data.players);
     if (data.handAssignments) setHandAssignments(data.handAssignments);
-    if (data.playerHands) setPlayerHands(data.playerHands);
+    if (data.playerHands) {
+      console.log("📇 Updating playerHands:", data.playerHands);
+      setPlayerHands(data.playerHands);
+    }
     if (data.currentBidderIndex !== undefined) setCurrentBidderIndex(data.currentBidderIndex);
     if (data.bids) setBids(data.bids);
     if (data.highestBid !== undefined) setHighestBid(data.highestBid);
+    if (data.dealerIndex !== undefined) setDealerIndex(data.dealerIndex);
+    if (data.totalPoints) setTotalPoints(data.totalPoints);
     if (data.bidWinnerHandId) setBidWinnerHandId(data.bidWinnerHandId);
     if (data.bidWinnerIndex !== undefined) setBidWinnerIndex(data.bidWinnerIndex);
     if (data.winningBid !== undefined) setWinningBid(data.winningBid);
@@ -89,8 +100,28 @@ const Game = () => {
     if (data.tricksWon) setTricksWon(data.tricksWon);
     if (data.trickNumber !== undefined) setTrickNumber(data.trickNumber);
     
-    if (data.type === "PLAYING_PHASE") {
-      setCurrentTrick([]);
+    if (data.type === "PLAYING_PHASE" || data.type === "PLAYING") {
+      // Handle both new phase start and reconnection
+      console.log("📥 PLAYING phase message received");
+      console.log("   data.playedCards:", data.playedCards);
+      console.log("   playedCards length:", data.playedCards?.length);
+      
+      if (data.playedCards && data.playedCards.length > 0) {
+        console.log("   ✓ Setting currentTrick with existing cards:", data.playedCards);
+        setCurrentTrick(data.playedCards);
+        currentTrickRef.current = data.playedCards;
+      } else {
+        console.log("   ✓ Clearing currentTrick (no cards in play)");
+        setCurrentTrick([]);
+        currentTrickRef.current = [];
+      }
+    }
+    
+    // Also handle if playedCards comes in any message during PLAYING phase
+    if (data.phase === "PLAYING" && data.playedCards && data.playedCards.length > 0) {
+      console.log("📥 Received playedCards in PLAYING phase message:", data.playedCards);
+      setCurrentTrick(data.playedCards);
+      currentTrickRef.current = data.playedCards;
     }
     
     if (data.type === "CARD_PLAYED") {
@@ -98,24 +129,30 @@ const Game = () => {
       if (data.playedCards) {
         console.log("   Setting currentTrick to:", data.playedCards);
         setCurrentTrick(data.playedCards);
+        currentTrickRef.current = data.playedCards; // Keep ref in sync
       } else {
         console.log("   ⚠️ No playedCards in message!");
       }
     }
     
     if (data.type === "TRICK_COMPLETE") {
+      console.log("🏆 TRICK_COMPLETE received:", data);
+      
+      // Use the completed trick from server (more reliable than ref)
+      const completedTrick = data.completedTrick || currentTrickRef.current || [];
+      console.log("   Completed trick:", completedTrick);
+      
       // Show all 4 cards with winner highlighted
       setTrickWinnerHandId(data.winnerHandId);
       setShowTrickComplete(true);
       
-      // Save this trick as the last trick before clearing
-      const completedTrick = [...currentTrick];
-      
       // After animation, clear the trick and save to last trick
       setTimeout(() => {
+        console.log("   Setting lastTrick to:", completedTrick);
         setLastTrick(completedTrick);
         setLastTrickWinner(data.winnerHandId);
         setCurrentTrick([]);
+        currentTrickRef.current = []; // Clear ref too
         setTrickWinnerHandId(null);
         setShowTrickComplete(false);
       }, 2500);
@@ -123,6 +160,22 @@ const Game = () => {
     
     if (data.type === "PLAY_ERROR") {
       alert(data.message || "Invalid play!");
+    }
+    
+    if (data.type === "HAND_COMPLETE") {
+      console.log("📋 HAND_COMPLETE received:", data);
+      setHandCompleteData(data);
+      setReadyPlayers([]);
+    }
+    
+    if (data.type === "HAND_COMPLETE_READY_UPDATE") {
+      console.log("✓ Ready update:", data);
+      setReadyPlayers(data.readyPlayers || []);
+    }
+    
+    if (data.type === "GAME_COMPLETE") {
+      console.log("🏆 GAME_COMPLETE received:", data);
+      setHandCompleteData(data);
     }
     
     if (data.type === "DEALER_GUESS_UPDATE") {
@@ -178,6 +231,11 @@ const Game = () => {
     console.log(`📤 Playing card: handId=${handId}, card=`, card);
     console.log(`   Current trick before play:`, currentTrick);
     sendMessage(JSON.stringify({ type: "PLAY_CARD", handId, card }));
+  };
+
+  const handleHandCompleteReady = () => {
+    console.log("📤 Sending HAND_COMPLETE_READY");
+    sendMessage(JSON.stringify({ type: "HAND_COMPLETE_READY", playerId: currentUserId }));
   };
 
   // Render phase-specific overlay
@@ -257,6 +315,7 @@ const Game = () => {
         currentBidderIndex={currentBidderIndex}
         bids={bids}
         highestBid={highestBid}
+        dealerIndex={dealerIndex}
         handleBid={handleBid}
         handleTrumpSelection={handleTrumpSelection}
         trumpSuit={trumpSuit}
@@ -269,12 +328,30 @@ const Game = () => {
         showTrickComplete={showTrickComplete}
         lastTrick={lastTrick}
         lastTrickWinner={lastTrickWinner}
+        bidWinnerHandId={bidWinnerHandId}
+        winningBid={winningBid}
       />
       
       {phase === "DEALING" && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="text-2xl text-white">Dealing Cards…</div>
         </div>
+      )}
+      
+      {(phase === "HAND_COMPLETE" || phase === "GAME_COMPLETE") && handCompleteData && (
+        <HandComplete
+          tricksWon={handCompleteData.tricksWon || {}}
+          pointsScored={handCompleteData.pointsScored || {}}
+          teamScores={handCompleteData.teamScores || {}}
+          totalPoints={totalPoints}
+          biddingTeam={handCompleteData.biddingTeam || "Us"}
+          tricksNeeded={handCompleteData.tricksNeeded || 0}
+          biddingTeamTricks={handCompleteData.biddingTeamTricks || 0}
+          handAssignments={handAssignments}
+          currentUserId={currentUserId}
+          readyPlayers={readyPlayers}
+          onReady={handleHandCompleteReady}
+        />
       )}
     </>
   );

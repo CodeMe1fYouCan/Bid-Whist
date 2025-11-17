@@ -13,6 +13,7 @@ interface GameTableProps {
   currentBidderIndex?: number;
   bids?: any[];
   highestBid?: number;
+  dealerIndex?: number;
   handleBid?: (handId: string, bidAmount: number | string) => void;
   handleTrumpSelection?: (trumpSuit: string) => void;
   trumpSuit?: string;
@@ -25,6 +26,8 @@ interface GameTableProps {
   showTrickComplete?: boolean;
   lastTrick?: any[];
   lastTrickWinner?: string | null;
+  bidWinnerHandId?: string;
+  winningBid?: number;
 }
 
 export default function GameTable({
@@ -39,6 +42,7 @@ export default function GameTable({
   currentBidderIndex = 0,
   bids = [],
   highestBid = 0,
+  dealerIndex = 0,
   handleBid,
   handleTrumpSelection,
   trumpSuit = "",
@@ -51,6 +55,8 @@ export default function GameTable({
   showTrickComplete = false,
   lastTrick = [],
   lastTrickWinner = null,
+  bidWinnerHandId = "",
+  winningBid = 0,
 }: GameTableProps) {
   const showCards = phase === "BIDDING" || phase === "PLAYING" || phase === "TRUMP_SELECTION";
   const [bidInput, setBidInput] = React.useState<string>("");
@@ -101,6 +107,12 @@ export default function GameTable({
 
   // Sort cards by suit and rank (default order) - update when playerHands changes
   React.useEffect(() => {
+    console.log("🃏 Card sorting effect triggered:", {
+      myCardsLength: myCards.length,
+      activeHandId,
+      cardsInHand: playerHands[activeHandId]?.length
+    });
+    
     if (myCards.length > 0 && activeHandId) {
       const suitOrder = { hearts: 0, spades: 1, diamonds: 2, clubs: 3 };
       const rankOrder = { 'A': 13, 'K': 12, 'Q': 11, 'J': 10, '10': 9, '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1 };
@@ -111,9 +123,11 @@ export default function GameTable({
         return (rankOrder[b.rank as keyof typeof rankOrder] || 0) - (rankOrder[a.rank as keyof typeof rankOrder] || 0);
       });
       
+      console.log("   Setting sorted cards:", sorted.length, "cards");
       setSortedCards(prev => ({ ...prev, [activeHandId]: sorted }));
     } else if (myCards.length === 0 && activeHandId) {
       // Clear sorted cards when hand is empty
+      console.log("   Clearing sorted cards");
       setSortedCards(prev => ({ ...prev, [activeHandId]: [] }));
     }
   }, [myCards.length, activeHandId, playerHands]);
@@ -421,35 +435,78 @@ export default function GameTable({
               )}
             </div>
 
-            {/* Trick info - right of player's cards */}
-            <div className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20" style={{ bottom: '2vh', right: '10vw', color: '#ffffff' }}>
+            {/* Trick info - top left */}
+            <div className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20" style={{ top: '2vh', left: '8vw', color: '#ffffff' }}>
               <div className="font-bold" style={{ fontSize: '2.25rem' }}>Trick {trickNumber}/13</div>
-              <div className="mt-2" style={{ fontSize: '1.5rem', opacity: 0.9 }}>
-                Us: {tricksWon.Us} | Them: {tricksWon.Them}
+              <div className="mt-3 grid grid-cols-2 gap-4" style={{ fontSize: '1.25rem' }}>
+                {(() => {
+                  // Determine bidding team
+                  const bidWinnerHand = handAssignments.find((h: any) => 
+                    `${h.playerId}_hand_${h.handIndex}` === bidWinnerHandId
+                  );
+                  const biddingTeam = bidWinnerHand?.team || "";
+                  const tricksNeeded = 6 + winningBid;
+                  const defendingTricksNeeded = 8 - winningBid; // 14 total - (6 + bid)
+                  
+                  return (
+                    <>
+                      <div>
+                        <div className="font-bold text-purple-300">Us</div>
+                        <div className="text-sm opacity-80 mb-1">
+                          {handAssignments
+                            .filter((h: any) => h.team === "Us")
+                            .map((h: any) => h.playerName)
+                            .join(", ")}
+                        </div>
+                        <div className="text-2xl font-bold text-yellow-300">{tricksWon.Us}</div>
+                        {biddingTeam && (
+                          <div className="text-xs opacity-70 mt-1">
+                            Need {biddingTeam === "Us" ? tricksNeeded : defendingTricksNeeded}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-bold text-blue-300">Them</div>
+                        <div className="text-sm opacity-80 mb-1">
+                          {handAssignments
+                            .filter((h: any) => h.team === "Them")
+                            .map((h: any) => h.playerName)
+                            .join(", ")}
+                        </div>
+                        <div className="text-2xl font-bold text-yellow-300">{tricksWon.Them}</div>
+                        {biddingTeam && (
+                          <div className="text-xs opacity-70 mt-1">
+                            Need {biddingTeam === "Them" ? tricksNeeded : defendingTricksNeeded}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
-            {/* Last Trick - to the right of trick info */}
+            {/* Last Trick - bottom right */}
             {lastTrick.length === 4 && (
-              <div className="absolute bg-black/80 px-4 py-3 rounded-lg border-2 border-white/30 z-20" style={{ bottom: '2vh', right: '2vw', color: '#ffffff' }}>
-                <div className="text-sm mb-2 text-center" style={{ opacity: 0.7 }}>Last Trick</div>
-                <div className="flex gap-1">
+              <div className="absolute bg-black/80 px-6 py-5 rounded-lg border-2 border-white/30 z-20" style={{ bottom: '2vh', right: '2vw', color: '#ffffff' }}>
+                <div className="text-xl mb-3 text-center font-semibold" style={{ opacity: 0.85 }}>Last Trick</div>
+                <div className="flex gap-2">
                   {lastTrick.map((play: any, idx: number) => {
                     const isWinner = play.handId === lastTrickWinner;
                     return (
                       <div 
                         key={idx}
                         style={{
-                          filter: isWinner ? 'drop-shadow(0 0 4px rgba(251, 191, 36, 0.8))' : 'none',
-                          opacity: isWinner ? 1 : 0.7
+                          filter: isWinner ? 'drop-shadow(0 0 10px rgba(251, 191, 36, 1))' : 'none',
+                          opacity: isWinner ? 1 : 0.75
                         }}
                       >
                         <Card 
                           suit={play.card.suit} 
                           rank={play.card.rank} 
                           faceUp 
-                          width={35} 
-                          height={52} 
+                          width={60} 
+                          height={90} 
                         />
                       </div>
                     );
@@ -491,24 +548,36 @@ export default function GameTable({
                   const isWinner = showTrickComplete && play.handId === trickWinnerHandId;
                   
                   // Calculate position to move towards winner
-                  let animateToPos = pos;
+                  let animateStyle = {};
                   if (showTrickComplete && trickWinnerHandId) {
                     const winnerPlay = currentTrick.find((p: any) => p.handId === trickWinnerHandId);
                     if (winnerPlay) {
                       const winnerPos = positions[winnerPlay.handIndex];
-                      animateToPos = winnerPos;
+                      // Slide all cards to winner's position with slight offset for stacking effect
+                      const offsetX = (idx - currentTrick.findIndex((p: any) => p.handId === trickWinnerHandId)) * 5;
+                      animateStyle = {
+                        ...winnerPos,
+                        left: winnerPos.left ? `calc(${winnerPos.left} + ${offsetX}px)` : undefined,
+                        right: winnerPos.right ? `calc(${winnerPos.right} - ${offsetX}px)` : undefined,
+                        opacity: isWinner ? 1 : 0.7,
+                      };
                     }
                   }
                   
                   return (
                     <div
                       key={idx}
-                      className="absolute transition-all duration-1000"
+                      className="absolute transition-all duration-1000 ease-in-out"
                       style={{
-                        ...pos,
-                        ...(showTrickComplete ? animateToPos : {}),
-                        filter: isWinner ? 'drop-shadow(0 0 15px rgba(251, 191, 36, 1)) brightness(1.3)' : 'none',
-                        transform: `${pos.transform || ''} ${isWinner ? 'scale(1.1)' : 'scale(1)'}`,
+                        ...(showTrickComplete ? animateStyle : pos),
+                        filter: isWinner 
+                          ? 'drop-shadow(0 0 20px rgba(251, 191, 36, 1)) drop-shadow(0 0 40px rgba(251, 191, 36, 0.6)) brightness(1.3)' 
+                          : showTrickComplete 
+                          ? 'brightness(0.8)' 
+                          : 'none',
+                        transform: showTrickComplete 
+                          ? (isWinner ? 'scale(1.15)' : 'scale(0.95)') 
+                          : (pos.transform || ''),
                         zIndex: isWinner ? 10 : 1
                       }}
                     >
@@ -689,9 +758,22 @@ export default function GameTable({
           const currentBidder = handAssignments[currentBidderIndex];
           const currentHandId = `${currentBidder?.playerId}_hand_${currentBidder?.handIndex}`;
           const isMyTurn = currentBidder?.playerId === currentUserId;
-          const minBid = highestBid + 1;
+          const isDealer = currentBidderIndex === dealerIndex;
+          // Dealer can match highest bid (but minimum is 1), others must beat it
+          const minBid = highestBid === 0 ? 1 : (isDealer ? highestBid : highestBid + 1);
           const bidValue = parseInt(bidInput);
           const canBid = bidValue >= minBid && bidValue <= 7;
+          
+          console.log("🎯 Bidding state:", {
+            currentBidderIndex,
+            dealerIndex,
+            isDealer,
+            highestBid,
+            minBid,
+            bidInput,
+            bidValue,
+            canBid
+          });
           
           // Find Faye's team for color coding
           const fayeHand = handAssignments.find((h: any) => h.playerName?.toLowerCase() === 'faye');
@@ -713,6 +795,7 @@ export default function GameTable({
                     <div className="text-3xl font-bold" style={{ color: currentBidder?.team === fayeTeam ? '#c4b5fd' : '#60a5fa' }}>
                       {currentBidder?.playerName?.toLowerCase() === 'faye' && '💜 '}
                       {currentBidder?.playerName} - Hand {parseInt(currentBidder?.handIndex) + 1}
+                      {isDealer && <span className="ml-2 text-yellow-300">👑 Dealer</span>}
                       {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
                     </div>
                     <div className="mt-1" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>
@@ -727,6 +810,7 @@ export default function GameTable({
                         <div className="text-lg font-bold" style={{ color: '#ffffff' }}>Your Turn to Bid</div>
                         <div className="text-sm" style={{ color: 'rgba(255, 255, 255, 0.9)' }}>
                           Minimum bid: {minBid} (Range: 1-7)
+                          {isDealer && <span className="block text-yellow-300 mt-1">👑 As dealer, you can match the highest bid</span>}
                         </div>
                       </div>
                       

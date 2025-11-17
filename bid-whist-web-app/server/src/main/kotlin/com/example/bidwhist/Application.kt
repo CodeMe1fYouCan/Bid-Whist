@@ -83,11 +83,14 @@ suspend fun startGame(room: RoomState, objectMapper: ObjectMapper) {
         }
     }
     
-    // Initialize game state
+    // Initialize game state (preserve totalPoints if it exists from previous game)
+    val existingTotalPoints = room.gameState?.get("totalPoints") as? MutableMap<String, Int>
+    
     room.gameState = mutableMapOf(
         "phase" to "DEALER_SELECTION",
         "handAssignments" to handAssignments,
         "teamScores" to mapOf("Us" to 0, "Them" to 0),
+        "totalPoints" to (existingTotalPoints ?: mutableMapOf("Us" to 0, "Them" to 0)),
         "pointsToWin" to 11, // Default to 11, can be made configurable
         "dealerGuesses" to mutableMapOf<String, Int>()
     )
@@ -280,16 +283,38 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
         val amount = (bidAmount as? Number)?.toInt() ?: return
         bidEntry["amount"] = amount
         
-        // Validate bid
-        val isDealer = bidderIndex == dealerIndex
-        if (isDealer) {
-            // Dealer can match highest bid
-            if (amount < highestBid) return
-        } else {
-            // Non-dealer must bid higher
-            if (amount <= highestBid) return
+        // Validate bid range (1-7)
+        if (amount < 1 || amount > 7) {
+            println("   ❌ Invalid bid amount: $amount (must be 1-7)")
+            val errorMessage = objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "BID_ERROR",
+                    "message" to "Bid must be between 1 and 7"
+                )
+            )
+            room.connections[handAssignments[bidderIndex]["playerId"]]?.send(Frame.Text(errorMessage))
+            return
         }
         
+        // Validate bid against highest bid
+        val isDealer = bidderIndex == dealerIndex
+        val minBid = if (highestBid == 0) 1 else if (isDealer) highestBid else highestBid + 1
+        
+        println("   Validating bid: amount=$amount, minBid=$minBid, isDealer=$isDealer, highestBid=$highestBid")
+        
+        if (amount < minBid) {
+            println("   ❌ Bid too low: $amount < $minBid")
+            val errorMessage = objectMapper.writeValueAsString(
+                mapOf(
+                    "type" to "BID_ERROR",
+                    "message" to "Bid must be at least $minBid"
+                )
+            )
+            room.connections[handAssignments[bidderIndex]["playerId"]]?.send(Frame.Text(errorMessage))
+            return
+        }
+        
+        println("   ✅ Bid accepted: $amount")
         gameState["highestBid"] = amount
         gameState["bidWinnerHandId"] = handId
         gameState["bidWinnerIndex"] = bidderIndex
@@ -346,14 +371,11 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
             }
         }
     } else {
-        // Move to next bidder
-        var nextBidder = (currentBidderIndex + 1) % 4
-        while (nextBidder in passedPlayers) {
-            nextBidder = (nextBidder + 1) % 4
-        }
+        // Move to next bidder (bidding goes around once, so just increment)
+        val nextBidder = (currentBidderIndex + 1) % 4
         gameState["currentBidderIndex"] = nextBidder
         
-        println("📤 Moving to next bidder: $nextBidder")
+        println("📤 Moving to next bidder: $nextBidder (bid ${bids.size}/4)")
         
         val bidUpdate = objectMapper.writeValueAsString(
             mapOf(
@@ -495,6 +517,9 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
         
         val trickNumber = gameState["trickNumber"] as? Int ?: 1
         
+        // Save completed trick before clearing
+        val completedTrick = playedCards.toList()
+        
         // Check if hand is complete
         if (trickNumber == 13) {
             // Hand complete - calculate scores
@@ -514,7 +539,8 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
                     "winnerHandId" to winnerHandId,
                     "tricksWon" to tricksWon,
                     "trickNumber" to (trickNumber + 1),
-                    "currentPlayerIndex" to playedCards[winnerIndex]["handIndex"]
+                    "currentPlayerIndex" to playedCards[winnerIndex]["handIndex"],
+                    "completedTrick" to completedTrick
                 )
             )
             room.connections.values.forEach { session ->
@@ -598,6 +624,7 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
     val highestBid = gameState["highestBid"] as? Int ?: return
     val tricksWon = gameState["tricksWon"] as? Map<String, Int> ?: return
     val teamScores = gameState["teamScores"] as? MutableMap<String, Int> ?: return
+    val totalPoints = gameState["totalPoints"] as? MutableMap<String, Int> ?: mutableMapOf("Us" to 0, "Them" to 0)
     val pointsToWin = gameState["pointsToWin"] as? Int ?: 11
     
     // Determine bidding team
@@ -616,11 +643,13 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
         // Bidding team made it
         val points = kotlin.math.max(0, biddingTeamTricks - 6)
         teamScores[biddingTeam] = (teamScores[biddingTeam] ?: 0) + points
+        totalPoints[biddingTeam] = (totalPoints[biddingTeam] ?: 0) + points
         pointsScored = mapOf(biddingTeam to points, defendingTeam to 0)
     } else {
         // Bidding team missed
         val points = highestBid + kotlin.math.max(0, defendingTeamTricks - 6)
         teamScores[defendingTeam] = (teamScores[defendingTeam] ?: 0) + points
+        totalPoints[defendingTeam] = (totalPoints[defendingTeam] ?: 0) + points
         pointsScored = mapOf(biddingTeam to 0, defendingTeam to points)
     }
     
@@ -630,12 +659,19 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
     if (gameOver) {
         val winner = if ((teamScores["Us"] ?: 0) >= pointsToWin) "Us" else "Them"
         
+        gameState["phase"] = "GAME_COMPLETE"
+        
         val gameOverMessage = objectMapper.writeValueAsString(
             mapOf(
                 "type" to "GAME_COMPLETE",
                 "phase" to "GAME_COMPLETE",
                 "teamScores" to teamScores,
+                "totalPoints" to totalPoints,
                 "winner" to winner,
+                "tricksWon" to tricksWon,
+                "pointsScored" to pointsScored,
+                "biddingTeam" to biddingTeam,
+                "tricksNeeded" to tricksNeeded,
                 "message" to "Game Over! Team $winner wins!"
             )
         )
@@ -651,6 +687,11 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
         val currentDealerIndex = gameState["dealerIndex"] as? Int ?: 0
         val nextDealerIndex = (currentDealerIndex + 1) % 4
         
+        // Update phase and store next dealer
+        gameState["phase"] = "HAND_COMPLETE"
+        gameState["nextDealerIndex"] = nextDealerIndex
+        gameState["handCompleteReadyPlayers"] = mutableSetOf<String>()
+        
         val handCompleteMessage = objectMapper.writeValueAsString(
             mapOf(
                 "type" to "HAND_COMPLETE",
@@ -658,7 +699,11 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
                 "tricksWon" to tricksWon,
                 "pointsScored" to pointsScored,
                 "teamScores" to teamScores,
-                "message" to "Hand complete! Starting next hand..."
+                "totalPoints" to totalPoints,
+                "biddingTeam" to biddingTeam,
+                "tricksNeeded" to tricksNeeded,
+                "biddingTeamTricks" to biddingTeamTricks,
+                "message" to "Hand complete! Click Ready to continue."
             )
         )
         room.connections.values.forEach { session ->
@@ -668,8 +713,37 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
                 println("Error sending hand complete: ${e.message}")
             }
         }
-        
-        kotlinx.coroutines.delay(3000) // Give players time to see scores
+    }
+}
+
+suspend fun handleHandCompleteReady(room: RoomState, playerId: String, objectMapper: ObjectMapper) {
+    val gameState = room.gameState ?: return
+    val readyPlayers = gameState["handCompleteReadyPlayers"] as? MutableSet<String> ?: return
+    
+    readyPlayers.add(playerId)
+    println("📋 Player $playerId ready for next hand (${readyPlayers.size}/${room.players.size})")
+    
+    // Broadcast updated ready status
+    val readyUpdate = objectMapper.writeValueAsString(
+        mapOf(
+            "type" to "HAND_COMPLETE_READY_UPDATE",
+            "readyPlayers" to readyPlayers.toList(),
+            "readyCount" to readyPlayers.size,
+            "totalPlayers" to room.players.size
+        )
+    )
+    room.connections.values.forEach { session ->
+        try {
+            session.send(Frame.Text(readyUpdate))
+        } catch (e: Exception) {
+            println("Error sending ready update: ${e.message}")
+        }
+    }
+    
+    // Check if all players are ready
+    if (readyPlayers.size >= room.players.size) {
+        println("✅ All players ready! Starting next hand...")
+        val nextDealerIndex = gameState["nextDealerIndex"] as? Int ?: 0
         dealNewHand(room, objectMapper, nextDealerIndex)
     }
 }
@@ -847,39 +921,69 @@ fun Application.module() {
                                         if (room.gameState != null) {
                                             val phase = room.gameState?.get("phase") as? String
                                             println("  → Game state exists, phase=$phase")
-                                            if (phase != null && phase != "DEALER_SELECTION") {
-                                                println("  → Game in progress, sending current state to ${player.name}")
-                                                val gameStateMessage = objectMapper.writeValueAsString(
-                                                    mapOf(
-                                                        "type" to phase,
-                                                        "phase" to phase
-                                                    ) + (room.gameState ?: emptyMap())
-                                                )
-                                                try {
-                                                    this.send(Frame.Text(gameStateMessage))
-                                                } catch (e: Exception) {
-                                                    println("  ⚠ Error sending game state: ${e.message}")
+                                            
+                                            // Build comprehensive game state message
+                                            val baseState = mutableMapOf<String, Any?>(
+                                                "type" to phase,
+                                                "phase" to phase,
+                                                "players" to room.players,
+                                                "handAssignments" to room.gameState?.get("handAssignments"),
+                                                "teamScores" to room.gameState?.get("teamScores"),
+                                                "totalPoints" to room.gameState?.get("totalPoints"),
+                                                "pointsToWin" to room.gameState?.get("pointsToWin")
+                                            )
+                                            
+                                            when (phase) {
+                                                "DEALER_SELECTION" -> {
+                                                    baseState["dealerGuesses"] = room.gameState?.get("dealerGuesses")
+                                                    baseState["message"] = "Each hand must guess a number 1-100 to determine the first dealer!"
                                                 }
-                                            } else if (phase == "DEALER_SELECTION") {
-                                                // Send dealer selection state
-                                                val dealerMessage = objectMapper.writeValueAsString(
-                                                    mapOf(
-                                                        "type" to "DEALER_SELECTION",
-                                                        "phase" to "DEALER_SELECTION",
-                                                        "roomCode" to room.roomCode,
-                                                        "players" to room.players,
-                                                        "handAssignments" to room.gameState?.get("handAssignments"),
-                                                        "teamScores" to room.gameState?.get("teamScores"),
-                                                        "pointsToWin" to room.gameState?.get("pointsToWin"),
-                                                        "dealerGuesses" to room.gameState?.get("dealerGuesses"),
-                                                        "message" to "Each hand must guess a number 1-100 to determine the first dealer!"
-                                                    )
-                                                )
-                                                try {
-                                                    this.send(Frame.Text(dealerMessage))
-                                                } catch (e: Exception) {
-                                                    println("  ⚠ Error sending dealer selection: ${e.message}")
+                                                "DEALER_REVEAL" -> {
+                                                    baseState["dealerGuesses"] = room.gameState?.get("dealerGuesses")
+                                                    baseState["dealerIndex"] = room.gameState?.get("dealerIndex")
                                                 }
+                                                "DEALING" -> {
+                                                    baseState["playerHands"] = room.gameState?.get("playerHands")
+                                                    baseState["dealerIndex"] = room.gameState?.get("dealerIndex")
+                                                }
+                                                "BIDDING" -> {
+                                                    baseState["playerHands"] = room.gameState?.get("playerHands")
+                                                    baseState["dealerIndex"] = room.gameState?.get("dealerIndex")
+                                                    baseState["currentBidderIndex"] = room.gameState?.get("currentBidderIndex")
+                                                    baseState["bids"] = room.gameState?.get("bids")
+                                                    baseState["highestBid"] = room.gameState?.get("highestBid")
+                                                }
+                                                "TRUMP_SELECTION" -> {
+                                                    baseState["playerHands"] = room.gameState?.get("playerHands")
+                                                    baseState["bidWinnerHandId"] = room.gameState?.get("bidWinnerHandId")
+                                                    baseState["bidWinnerIndex"] = room.gameState?.get("bidWinnerIndex")
+                                                    baseState["winningBid"] = room.gameState?.get("winningBid")
+                                                    baseState["highestBid"] = room.gameState?.get("highestBid")
+                                                }
+                                                "PLAYING" -> {
+                                                    baseState["playerHands"] = room.gameState?.get("playerHands")
+                                                    baseState["trumpSuit"] = room.gameState?.get("trumpSuit")
+                                                    baseState["currentPlayerIndex"] = room.gameState?.get("currentPlayerIndex")
+                                                    baseState["tricksWon"] = room.gameState?.get("tricksWon")
+                                                    baseState["trickNumber"] = room.gameState?.get("trickNumber")
+                                                    baseState["bidWinnerHandId"] = room.gameState?.get("bidWinnerHandId")
+                                                    baseState["winningBid"] = room.gameState?.get("winningBid")
+                                                    baseState["highestBid"] = room.gameState?.get("highestBid")
+                                                    val currentTrick = room.gameState?.get("currentTrick") as? Map<String, Any>
+                                                    baseState["playedCards"] = currentTrick?.get("playedCards")
+                                                }
+                                                "HAND_COMPLETE", "GAME_COMPLETE" -> {
+                                                    // Include all data from gameState for these phases
+                                                    baseState.putAll(room.gameState ?: emptyMap())
+                                                }
+                                            }
+                                            
+                                            println("  → Sending $phase state to ${player.name}")
+                                            val gameStateMessage = objectMapper.writeValueAsString(baseState)
+                                            try {
+                                                this.send(Frame.Text(gameStateMessage))
+                                            } catch (e: Exception) {
+                                                println("  ⚠ Error sending game state: ${e.message}")
                                             }
                                         } else {
                                             // No game in progress, send room state
@@ -1021,6 +1125,11 @@ fun Application.module() {
                                 "PLAY_CARD" -> {
                                     if (wsMessage.handId != null && wsMessage.card != null) {
                                         handleCardPlay(room, wsMessage.handId, wsMessage.card, objectMapper)
+                                    }
+                                }
+                                "HAND_COMPLETE_READY" -> {
+                                    if (wsMessage.playerId != null) {
+                                        handleHandCompleteReady(room, wsMessage.playerId, objectMapper)
                                     }
                                 }
                             }
