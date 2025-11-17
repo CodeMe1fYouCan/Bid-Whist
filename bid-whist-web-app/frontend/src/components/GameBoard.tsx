@@ -38,6 +38,7 @@ interface GameBoardProps {
   handCompleteData?: any;
   readyPlayers?: string[];
   totalPoints?: Record<string, number>;
+  teamScores?: Record<string, number>;
   onHandCompleteReady?: () => void;
 }
 
@@ -71,6 +72,7 @@ export default function GameBoard({
   handCompleteData = null,
   readyPlayers = [],
   totalPoints = { Us: 0, Them: 0 },
+  teamScores = { Us: 0, Them: 0 },
   onHandCompleteReady,
 }: GameBoardProps) {
   const showCards = phase === "BIDDING" || phase === "PLAYING" || phase === "TRUMP_SELECTION" || phase === "HAND_COMPLETE";
@@ -408,6 +410,7 @@ export default function GameBoard({
         trickWinnerHandId={trickWinnerHandId}
         showTrickComplete={showTrickComplete}
         handleDropOnCenter={handleDropOnCenter}
+        teamScores={teamScores}
       />
 
       {/* DEALER REVEAL OVERLAY */}

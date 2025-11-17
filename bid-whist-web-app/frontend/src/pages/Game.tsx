@@ -37,6 +37,7 @@ const Game = () => {
   const [handCompleteData, setHandCompleteData] = useState<any>(null);
   const [readyPlayers, setReadyPlayers] = useState<string[]>([]);
   const [totalPoints, setTotalPoints] = useState<Record<string, number>>({ Us: 0, Them: 0 });
+  const [teamScores, setTeamScores] = useState<Record<string, number>>({ Us: 0, Them: 0 });
   
   const joinedRef = useRef(false);
   const currentTrickRef = useRef<any[]>([]);
@@ -91,6 +92,7 @@ const Game = () => {
     if (data.highestBid !== undefined) setHighestBid(data.highestBid);
     if (data.dealerIndex !== undefined) setDealerIndex(data.dealerIndex);
     if (data.totalPoints) setTotalPoints(data.totalPoints);
+    if (data.teamScores) setTeamScores(data.teamScores);
     if (data.bidWinnerHandId) setBidWinnerHandId(data.bidWinnerHandId);
     if (data.bidWinnerIndex !== undefined) setBidWinnerIndex(data.bidWinnerIndex);
     if (data.winningBid !== undefined) setWinningBid(data.winningBid);
@@ -333,6 +335,7 @@ const Game = () => {
         handCompleteData={handCompleteData}
         readyPlayers={readyPlayers}
         totalPoints={totalPoints}
+        teamScores={teamScores}
         onHandCompleteReady={handleHandCompleteReady}
       />
       

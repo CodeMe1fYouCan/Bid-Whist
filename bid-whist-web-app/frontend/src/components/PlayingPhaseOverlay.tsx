@@ -15,6 +15,7 @@ interface PlayingPhaseOverlayProps {
   trickWinnerHandId: string | null;
   showTrickComplete: boolean;
   handleDropOnCenter: (e: React.DragEvent) => void;
+  teamScores?: Record<string, number>;
 }
 
 export default function PlayingPhaseOverlay({
@@ -31,6 +32,7 @@ export default function PlayingPhaseOverlay({
   trickWinnerHandId,
   showTrickComplete,
   handleDropOnCenter,
+  teamScores = { Us: 0, Them: 0 },
 }: PlayingPhaseOverlayProps) {
   // Determine bidding team
   const bidWinnerHand = handAssignments.find(
@@ -61,6 +63,30 @@ export default function PlayingPhaseOverlay({
             height={135}
           />
         )}
+      </div>
+
+      {/* Game Score - top right */}
+      <div
+        className="absolute text-center bg-black/80 px-8 py-5 rounded-lg border-2 border-yellow-400/50 z-20"
+        style={{ top: "2vh", right: "10%", color: "#ffffff" }}
+      >
+        <div className="font-bold mb-3" style={{ fontSize: "1.75rem", color: "#ffffff" }}>
+          Game Score
+        </div>
+        <div className="grid grid-cols-2 gap-6" style={{ fontSize: "1.25rem" }}>
+          <div>
+            <div className="font-bold mb-1" style={{ color: "#c084fc" }}>Us</div>
+            <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
+              {teamScores.Us}
+            </div>
+          </div>
+          <div>
+            <div className="font-bold mb-1" style={{ color: "#93c5fd" }}>Them</div>
+            <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
+              {teamScores.Them}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Trick info - top left */}
@@ -249,8 +275,8 @@ export default function PlayingPhaseOverlay({
                   suit={play.card.suit}
                   rank={play.card.rank}
                   faceUp
-                  width={70}
-                  height={105}
+                  width={90}
+                  height={135}
                 />
               </div>
             );

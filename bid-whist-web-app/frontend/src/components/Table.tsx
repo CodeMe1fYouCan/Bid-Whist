@@ -29,6 +29,7 @@ interface TableProps {
   trickWinnerHandId?: string | null;
   showTrickComplete?: boolean;
   handleDropOnCenter?: (e: React.DragEvent) => void;
+  teamScores?: Record<string, number>;
 }
 
 export default function Table({
@@ -58,6 +59,7 @@ export default function Table({
   trickWinnerHandId = null,
   showTrickComplete = false,
   handleDropOnCenter,
+  teamScores = { Us: 0, Them: 0 },
 }: TableProps) {
   const showCards = phase === "BIDDING" || phase === "PLAYING" || phase === "TRUMP_SELECTION";
 
@@ -328,6 +330,7 @@ export default function Table({
           trickWinnerHandId={trickWinnerHandId}
           showTrickComplete={showTrickComplete}
           handleDropOnCenter={handleDropOnCenter}
+          teamScores={teamScores}
         />
       )}
     </div>

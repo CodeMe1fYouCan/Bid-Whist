@@ -278,8 +278,15 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
     )
     
     if (bidAmount == "pass") {
-        // Check if this is the last player and everyone else has passed
-        if (passedPlayers.size == 3 && highestBid == 0) {
+        // Check if this is the dealer and everyone else has passed
+        if (bidderIndex == dealerIndex && passedPlayers.size == 3 && highestBid == 0) {
+            println("   🎯 Dealer cannot pass when everyone else has passed - forcing bid of 1")
+            // Dealer is forced to bid 1
+            bidEntry["amount"] = 1
+            gameState["highestBid"] = 1
+            gameState["bidWinnerHandId"] = handId
+            gameState["bidWinnerIndex"] = bidderIndex
+        } else if (passedPlayers.size == 3 && highestBid == 0) {
             println("   ❌ Cannot pass - you are the last player and must make a bid!")
             // Send error message back to client
             val errorMessage = objectMapper.writeValueAsString(
@@ -290,10 +297,10 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
             )
             room.connections[handAssignments[bidderIndex]["playerId"]]?.send(Frame.Text(errorMessage))
             return
+        } else {
+            bidEntry["amount"] = "pass"
+            passedPlayers.add(bidderIndex)
         }
-        
-        bidEntry["amount"] = "pass"
-        passedPlayers.add(bidderIndex)
     } else {
         val amount = (bidAmount as? Number)?.toInt() ?: return
         bidEntry["amount"] = amount
