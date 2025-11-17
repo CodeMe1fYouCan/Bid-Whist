@@ -61,10 +61,12 @@ data class RoomState(
 
 suspend fun startGame(room: RoomState, objectMapper: ObjectMapper) {
     // Create hand assignments based on player hand counts
-    val handAssignments = mutableListOf<Map<String, String>>()
+    // IMPORTANT: Teammates must sit across from each other (positions 0&2, 1&3)
     val aiNames = listOf("Oatmeal", "Reddy", "Jacob")
     var aiNameIndex = 0
     
+    // First, collect all hands with their team info
+    val allHands = mutableListOf<Map<String, String>>()
     room.players.forEach { player ->
         repeat(player.handCount) { handIndex ->
             val displayName = if (handIndex == 0) {
@@ -74,7 +76,7 @@ suspend fun startGame(room: RoomState, objectMapper: ObjectMapper) {
                 aiNames.getOrNull(aiNameIndex++)?.also { } ?: "${player.name} ${handIndex + 1}"
             }
             
-            handAssignments.add(mapOf(
+            allHands.add(mapOf(
                 "playerId" to player.id,
                 "playerName" to displayName,
                 "handIndex" to handIndex.toString(),
@@ -82,6 +84,19 @@ suspend fun startGame(room: RoomState, objectMapper: ObjectMapper) {
             ))
         }
     }
+    
+    // Separate hands by team
+    val usHands = allHands.filter { it["team"] == "Us" }
+    val themHands = allHands.filter { it["team"] == "Them" }
+    
+    // Arrange hands so teammates sit across from each other
+    // Pattern: Us, Them, Us, Them (positions 0, 1, 2, 3)
+    // This ensures positions 0&2 are teammates, and 1&3 are teammates
+    val handAssignments = mutableListOf<Map<String, String>>()
+    if (usHands.size >= 1) handAssignments.add(usHands[0])      // Position 0: Us
+    if (themHands.size >= 1) handAssignments.add(themHands[0])  // Position 1: Them
+    if (usHands.size >= 2) handAssignments.add(usHands[1])      // Position 2: Us (across from 0)
+    if (themHands.size >= 2) handAssignments.add(themHands[1])  // Position 3: Them (across from 1)
     
     // Initialize game state (preserve totalPoints if it exists from previous game)
     val existingTotalPoints = room.gameState?.get("totalPoints") as? MutableMap<String, Int>
@@ -538,6 +553,11 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
         val tricksWon = gameState["tricksWon"] as? MutableMap<String, Int> ?: mutableMapOf()
         tricksWon[winnerTeam] = (tricksWon[winnerTeam] ?: 0) + 1
         
+        // Track individual hand tricks
+        val handTricksWon = gameState["handTricksWon"] as? MutableMap<String, Int> ?: mutableMapOf()
+        handTricksWon[winnerHandId] = (handTricksWon[winnerHandId] ?: 0) + 1
+        gameState["handTricksWon"] = handTricksWon
+        
         val trickNumber = gameState["trickNumber"] as? Int ?: 1
         
         // Save completed trick before clearing
@@ -715,11 +735,14 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
         gameState["nextDealerIndex"] = nextDealerIndex
         gameState["handCompleteReadyPlayers"] = mutableSetOf<String>()
         
+        val handTricksWon = gameState["handTricksWon"] as? Map<String, Int> ?: emptyMap()
+        
         val handCompleteMessage = objectMapper.writeValueAsString(
             mapOf(
                 "type" to "HAND_COMPLETE",
                 "phase" to "HAND_COMPLETE",
                 "tricksWon" to tricksWon,
+                "handTricksWon" to handTricksWon,
                 "pointsScored" to pointsScored,
                 "teamScores" to teamScores,
                 "totalPoints" to totalPoints,
@@ -793,11 +816,19 @@ suspend fun dealNewHand(room: RoomState, objectMapper: ObjectMapper, dealerIndex
     }
 
     // First show dealing phase
+    // Initialize individual hand trick tracking
+    val handTricksWon = mutableMapOf<String, Int>()
+    handAssignments.forEach { assignment ->
+        val handId = "${assignment["playerId"]}_hand_${assignment["handIndex"]}"
+        handTricksWon[handId] = 0
+    }
+    
     room.gameState?.putAll(mapOf(
         "phase" to "DEALING",
         "dealerIndex" to dealerIndex,
         "playerHands" to playerHands,
-        "tricksWon" to mapOf("Us" to 0, "Them" to 0)
+        "tricksWon" to mapOf("Us" to 0, "Them" to 0),
+        "handTricksWon" to handTricksWon
     ))
 
     // Broadcast dealing phase

@@ -5,8 +5,7 @@ import useWebSocket from "../hooks/useWebSocket";
 import DealerSelection from "../components/DealerSelection";
 import BiddingPhase from "../components/BiddingPhase";
 import TrumpSelection from "../components/TrumpSelection";
-import GameTable from "../components/GameTable";
-import HandComplete from "../components/HandComplete";
+import GameBoard from "../components/GameBoard";
 
 const Game = () => {
   const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
@@ -164,6 +163,7 @@ const Game = () => {
     
     if (data.type === "HAND_COMPLETE") {
       console.log("📋 HAND_COMPLETE received:", data);
+      console.log("   Setting handCompleteData to:", data);
       setHandCompleteData(data);
       setReadyPlayers([]);
     }
@@ -303,7 +303,7 @@ const Game = () => {
 
   return (
     <>
-      <GameTable
+      <GameBoard
         handAssignments={handAssignments}
         playerHands={playerHands}
         currentUserId={currentUserId}
@@ -330,28 +330,16 @@ const Game = () => {
         lastTrickWinner={lastTrickWinner}
         bidWinnerHandId={bidWinnerHandId}
         winningBid={winningBid}
+        handCompleteData={handCompleteData}
+        readyPlayers={readyPlayers}
+        totalPoints={totalPoints}
+        onHandCompleteReady={handleHandCompleteReady}
       />
       
       {phase === "DEALING" && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="text-2xl text-white">Dealing Cards…</div>
         </div>
-      )}
-      
-      {(phase === "HAND_COMPLETE" || phase === "GAME_COMPLETE") && handCompleteData && (
-        <HandComplete
-          tricksWon={handCompleteData.tricksWon || {}}
-          pointsScored={handCompleteData.pointsScored || {}}
-          teamScores={handCompleteData.teamScores || {}}
-          totalPoints={totalPoints}
-          biddingTeam={handCompleteData.biddingTeam || "Us"}
-          tricksNeeded={handCompleteData.tricksNeeded || 0}
-          biddingTeamTricks={handCompleteData.biddingTeamTricks || 0}
-          handAssignments={handAssignments}
-          currentUserId={currentUserId}
-          readyPlayers={readyPlayers}
-          onReady={handleHandCompleteReady}
-        />
       )}
     </>
   );

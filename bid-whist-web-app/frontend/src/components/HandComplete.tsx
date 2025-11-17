@@ -2,6 +2,7 @@ import React from "react";
 
 interface HandCompleteProps {
   tricksWon: Record<string, number>;
+  handTricksWon?: Record<string, number>;
   pointsScored: Record<string, number>;
   teamScores: Record<string, number>;
   totalPoints?: Record<string, number>;
@@ -16,6 +17,7 @@ interface HandCompleteProps {
 
 export default function HandComplete({
   tricksWon,
+  handTricksWon = {},
   pointsScored,
   teamScores,
   totalPoints = { Us: 0, Them: 0 },
@@ -32,8 +34,8 @@ export default function HandComplete({
   const isReady = readyPlayers.includes(currentUserId || "");
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50">
-      <div className="bg-gray-900 text-white p-8 rounded-3xl shadow-2xl max-w-2xl border-4 border-yellow-400/50">
+    <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
+      <div className="bg-gray-900 text-white p-8 rounded-3xl shadow-2xl max-w-2xl border-4 border-yellow-400/50 pointer-events-auto">
         <h2 className="text-4xl font-bold text-center mb-6 text-yellow-300">
           Hand Complete!
         </h2>
@@ -50,6 +52,29 @@ export default function HandComplete({
           </div>
           <div className={`text-3xl font-bold mt-2 ${bidMade ? "text-green-400" : "text-red-400"}`}>
             {bidMade ? "✓ Bid Made!" : "✗ Bid Failed"}
+          </div>
+        </div>
+
+        {/* Individual Hand Stats */}
+        <div className="mb-6 bg-black/30 p-4 rounded-lg">
+          <div className="text-center text-lg mb-3 font-bold">Individual Tricks Won</div>
+          <div className="grid grid-cols-2 gap-3">
+            {handAssignments.map((hand: any) => {
+              const handId = `${hand.playerId}_hand_${hand.handIndex}`;
+              const tricks = handTricksWon?.[handId] || 0;
+              const isUs = hand.team === "Us";
+              return (
+                <div 
+                  key={handId} 
+                  className={`p-2 rounded border ${isUs ? 'bg-purple-900/20 border-purple-400/30' : 'bg-blue-900/20 border-blue-400/30'}`}
+                >
+                  <div className={`text-sm font-bold ${isUs ? 'text-purple-300' : 'text-blue-300'}`}>
+                    {hand.playerName}
+                  </div>
+                  <div className="text-xl font-bold text-yellow-300">{tricks} tricks</div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

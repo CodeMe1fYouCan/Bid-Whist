@@ -47,6 +47,11 @@ const Card: React.FC<CardProps> = ({
         spades: '#000000',
     };
 
+    // Scale font sizes based on card width (base width is 80px)
+    const scale = width / 80;
+    const cornerFontSize = Math.round(18 * scale);
+    const centerFontSize = Math.round(44 * scale); // 44px base (5% larger than original 42px)
+
     const renderFallbackCard = () => (
         <div
             style={{
@@ -75,7 +80,7 @@ const Card: React.FC<CardProps> = ({
                             position: 'absolute',
                             top: '6px',
                             left: '6px',
-                            fontSize: '18px',
+                            fontSize: `${cornerFontSize}px`,
                             fontWeight: 'bold',
                             color: suitColors[suit],
                             lineHeight: 0.9,
@@ -83,13 +88,13 @@ const Card: React.FC<CardProps> = ({
                         }}
                     >
                         <div>{rank}</div>
-                        <div style={{ fontSize: '18px', marginTop: '2px' }}>{suitSymbols[suit]}</div>
+                        <div style={{ fontSize: `${cornerFontSize}px`, marginTop: '2px' }}>{suitSymbols[suit]}</div>
                     </div>
 
                     {/* Center symbol */}
                     <div
                         style={{
-                            fontSize: '42px',
+                            fontSize: `${centerFontSize}px`,
                             color: suitColors[suit],
                         }}
                     >
@@ -102,7 +107,7 @@ const Card: React.FC<CardProps> = ({
                             position: 'absolute',
                             bottom: '6px',
                             right: '6px',
-                            fontSize: '18px',
+                            fontSize: `${cornerFontSize}px`,
                             fontWeight: 'bold',
                             color: suitColors[suit],
                             lineHeight: 0.9,
@@ -111,7 +116,7 @@ const Card: React.FC<CardProps> = ({
                         }}
                     >
                         <div>{rank}</div>
-                        <div style={{ fontSize: '18px', marginTop: '2px' }}>{suitSymbols[suit]}</div>
+                        <div style={{ fontSize: `${cornerFontSize}px`, marginTop: '2px' }}>{suitSymbols[suit]}</div>
                     </div>
                 </>
             ) : (
