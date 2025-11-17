@@ -31,6 +31,7 @@ export default function GameTable({
   handleBid,
 }: GameTableProps) {
   const showCards = phase === "BIDDING" || phase === "PLAYING";
+  const [bidInput, setBidInput] = React.useState<string>("");
 
   /** Find user’s hands */
   const myHandAssignments = handAssignments.filter(
@@ -265,7 +266,6 @@ export default function GameTable({
           const currentBidder = handAssignments[currentBidderIndex];
           const currentHandId = `${currentBidder?.playerId}_hand_${currentBidder?.handIndex}`;
           const isMyTurn = currentBidder?.playerId === currentUserId;
-          const [bidInput, setBidInput] = React.useState<string>("");
           const minBid = highestBid + 1;
           const bidValue = parseInt(bidInput);
           const canBid = bidValue >= minBid && bidValue <= 7;
@@ -299,29 +299,44 @@ export default function GameTable({
                         </div>
                       </div>
                       
-                      <div className="flex gap-3 justify-center">
-                        <input
-                          type="number"
-                          min={minBid}
-                          max="7"
-                          value={bidInput}
-                          onChange={(e) => setBidInput(e.target.value)}
-                          className="w-32 px-4 py-3 bg-gray-700 border border-gray-600 rounded text-white text-center text-xl"
-                          placeholder={`${minBid}-7`}
-                        />
-                        <button
-                          onClick={() => handleBid?.(currentHandId, bidValue)}
-                          disabled={!canBid}
-                          className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-lg"
-                        >
-                          Bid
-                        </button>
-                        <button
-                          onClick={() => handleBid?.(currentHandId, "pass")}
-                          className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded font-bold text-lg"
-                        >
-                          Pass
-                        </button>
+                      <div className="flex flex-col gap-3 items-center">
+                        <div className="flex gap-3">
+                          <input
+                            type="number"
+                            min={minBid}
+                            max="7"
+                            value={bidInput}
+                            onChange={(e) => setBidInput(e.target.value)}
+                            className={`w-32 px-4 py-3 rounded text-white text-center text-xl ${
+                              bidInput && !canBid 
+                                ? 'bg-red-900 border-2 border-red-500' 
+                                : 'bg-gray-700 border border-gray-600'
+                            }`}
+                            placeholder={`${minBid}-7`}
+                          />
+                          <button
+                            onClick={() => handleBid?.(currentHandId, bidValue)}
+                            disabled={!canBid}
+                            className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-lg"
+                          >
+                            Bid
+                          </button>
+                          <button
+                            onClick={() => handleBid?.(currentHandId, "pass")}
+                            className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded font-bold text-lg"
+                          >
+                            Pass
+                          </button>
+                        </div>
+                        {bidInput && !canBid && (
+                          <div className="text-red-400 text-sm font-semibold">
+                            {bidValue < minBid 
+                              ? `Bid must be at least ${minBid}` 
+                              : bidValue > 7 
+                              ? 'Bid cannot exceed 7' 
+                              : 'Invalid bid'}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
@@ -344,7 +359,7 @@ export default function GameTable({
                                 {hand?.playerName?.toLowerCase() === 'faye' && '💜 '}
                                 {hand?.playerName} - Hand {parseInt(hand?.handIndex) + 1}:
                               </span>
-                              <span className={`ml-2 ${bid.amount === "pass" ? "text-red-400" : "text-green-400"}`}>
+                              <span className="ml-2" style={{ color: bid.amount === "pass" ? "#f87171" : "#4ade80" }}>
                                 {bid.amount === "pass" ? "Passed" : `Bid ${bid.amount}`}
                               </span>
                             </div>

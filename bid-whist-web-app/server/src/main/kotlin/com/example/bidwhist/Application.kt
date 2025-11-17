@@ -62,11 +62,21 @@ data class RoomState(
 suspend fun startGame(room: RoomState, objectMapper: ObjectMapper) {
     // Create hand assignments based on player hand counts
     val handAssignments = mutableListOf<Map<String, String>>()
+    val aiNames = listOf("Oatmeal", "Reddy", "Jacob")
+    var aiNameIndex = 0
+    
     room.players.forEach { player ->
         repeat(player.handCount) { handIndex ->
+            val displayName = if (handIndex == 0) {
+                player.name
+            } else {
+                // Use AI names for additional hands
+                aiNames.getOrNull(aiNameIndex++)?.also { } ?: "${player.name} ${handIndex + 1}"
+            }
+            
             handAssignments.add(mapOf(
                 "playerId" to player.id,
-                "playerName" to player.name,
+                "playerName" to displayName,
                 "handIndex" to handIndex.toString(),
                 "team" to player.team
             ))
@@ -241,9 +251,11 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
     
     bids.add(bidEntry)
     
-    // Check if bidding is complete
+    // Check if bidding is complete - need at least 4 bids AND only 1 active bidder remaining
     val activeBidders = (0..3).filter { it !in passedPlayers }
-    if (activeBidders.size == 1) {
+    val allHandsHaveBid = bids.size >= 4
+    
+    if (allHandsHaveBid && activeBidders.size == 1) {
         // Bidding complete
         val winnerHandId = gameState["bidWinnerHandId"] as? String ?: return
         val winnerIndex = gameState["bidWinnerIndex"] as? Int ?: return
@@ -279,9 +291,12 @@ suspend fun handleBid(room: RoomState, handId: String, bidAmount: Any, objectMap
         val bidUpdate = objectMapper.writeValueAsString(
             mapOf(
                 "type" to "BID_UPDATE",
+                "phase" to "BIDDING",
                 "bids" to bids,
                 "currentBidderIndex" to nextBidder,
-                "highestBid" to highestBid
+                "highestBid" to highestBid,
+                "handAssignments" to handAssignments,
+                "playerHands" to gameState["playerHands"]
             )
         )
         room.connections.values.forEach { session ->
