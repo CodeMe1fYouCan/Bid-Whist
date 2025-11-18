@@ -60,7 +60,8 @@ const Home: React.FC = () => {
         // Check if code is already taken on the server
         setLoading(true);
         try {
-            const response = await fetch(`http://localhost:8080/api/room/${code}/exists`);
+            const backendUrl = import.meta.env.VITE_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || 'http://localhost:8080';
+            const response = await fetch(`${backendUrl}/api/room/${code}/exists`);
             const data = await response.json();
             
             if (data.exists) {
@@ -117,7 +118,8 @@ const Home: React.FC = () => {
         setLoading(true);
         try {
             // Check if room exists on the server
-            const response = await fetch(`http://localhost:8080/api/room/${code}/exists`);
+            const backendUrl = import.meta.env.VITE_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || 'http://localhost:8080';
+            const response = await fetch(`${backendUrl}/api/room/${code}/exists`);
             const data = await response.json();
             
             if (!data.exists) {
