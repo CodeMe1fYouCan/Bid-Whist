@@ -16,9 +16,9 @@ export default function TrumpSelectionOverlay({
   currentUserId,
   handleTrumpSelection,
 }: TrumpSelectionOverlayProps) {
-  const bidWinner = handAssignments.find((h: any, idx: number) => {
+  const bidWinner = handAssignments.find((h: any) => {
     const handId = `${h.playerId}_hand_${h.handIndex}`;
-    return idx === currentBidderIndex;
+    return handId === bidWinnerHandId;
   });
   const isMyTurn = bidWinner?.playerId === currentUserId;
 
