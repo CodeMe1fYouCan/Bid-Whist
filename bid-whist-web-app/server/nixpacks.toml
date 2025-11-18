@@ -2,7 +2,7 @@
 nixPkgs = ["openjdk11"]
 
 [phases.build]
-cmds = ["./gradlew shadowJar --no-daemon"]
+cmds = ["./gradlew shadowJar --no-daemon -Dorg.gradle.jvmargs='-Xmx256m -XX:MaxMetaspaceSize=128m'"]
 
 [start]
-cmd = "java -jar build/libs/bid-whist-web-app-1.0-SNAPSHOT-all.jar"
+cmd = "java -Xmx256m -jar build/libs/bid-whist-web-app-1.0-SNAPSHOT-all.jar"
