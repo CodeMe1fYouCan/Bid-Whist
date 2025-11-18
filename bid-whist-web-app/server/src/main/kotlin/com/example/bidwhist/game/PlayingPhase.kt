@@ -26,6 +26,21 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
     
     val currentHand = playerHands[handId]?.toMutableList() ?: mutableListOf()
     
+    // Verify the card exists in the player's hand
+    val cardExists = currentHand.any { it["suit"] == card["suit"] && it["rank"] == card["rank"] }
+    if (!cardExists) {
+        println("❌ Card not in hand! handId=$handId, card=$card")
+        println("   Current hand: $currentHand")
+        val errorMessage = objectMapper.writeValueAsString(
+            mapOf(
+                "type" to "PLAY_ERROR",
+                "message" to "You don't have that card!"
+            )
+        )
+        room.connections[handAssignments[playerIndex]["playerId"]]?.send(Frame.Text(errorMessage))
+        return
+    }
+    
     val leadSuit = currentTrick["leadSuit"] as? String
     if (leadSuit != null && playedCards.isNotEmpty()) {
         val hasLeadSuit = currentHand.any { it["suit"] == leadSuit }
@@ -43,8 +58,13 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
         }
     }
     
-    currentHand.removeIf { it["suit"] == card["suit"] && it["rank"] == card["rank"] }
+    // Remove the card from the hand
+    val removed = currentHand.removeIf { it["suit"] == card["suit"] && it["rank"] == card["rank"] }
+    if (!removed) {
+        println("⚠️ Warning: removeIf returned false for card that should exist")
+    }
     playerHands[handId] = currentHand
+    println("✓ Card removed. Hand now has ${currentHand.size} cards")
     
     playedCards.add(mapOf(
         "handId" to handId,

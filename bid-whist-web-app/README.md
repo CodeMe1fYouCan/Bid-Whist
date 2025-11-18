@@ -31,29 +31,50 @@ The project consists of two main parts: the frontend and the server.
 - Node.js and npm for the frontend.
 - Kotlin and Gradle for the server.
 
-### Running the Frontend
+### Running Locally
 
+#### Frontend
 1. Navigate to the `frontend` directory.
 2. Install dependencies:
-   ```
+   ```bash
    npm install
    ```
 3. Start the development server:
-   ```
+   ```bash
    npm run dev
    ```
 
-### Running the Server
-
+#### Server
 1. Navigate to the `server` directory.
 2. Build the project:
-   ```
+   ```bash
    ./gradlew build
    ```
 3. Run the server:
-   ```
+   ```bash
    ./gradlew run
    ```
+
+### Quick Start Script
+Use the provided script to start both frontend and server:
+```bash
+./start-dev.sh
+```
+
+## Deployment
+
+Want to play online with friends? Deploy your app to the cloud!
+
+**Quick Start**: See [QUICK_DEPLOY.md](QUICK_DEPLOY.md) for the fastest way to get online (~5 minutes, $5/month)
+
+**Detailed Guide**: See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment instructions
+
+**Checklist**: Use [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md) to track your deployment progress
+
+### Recommended Platforms
+- **Railway** (~$5/month) - Easiest and cheapest
+- **DigitalOcean** (~$12/month) - Production ready
+- **Render** (Free tier) - Good for testing
 
 ## Contributing
 

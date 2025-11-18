@@ -38,3 +38,6 @@
 .env
 .env.local
 .env.*.local
+
+# Note: .env.production is committed as a template
+# Update it with your actual backend URL after deployment

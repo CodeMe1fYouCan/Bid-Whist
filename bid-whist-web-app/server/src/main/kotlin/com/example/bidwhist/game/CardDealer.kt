@@ -39,7 +39,18 @@ suspend fun dealNewHand(room: RoomState, objectMapper: ObjectMapper, dealerIndex
         playerHands = mutableMapOf()
         handAssignments.forEachIndexed { index, assignment ->
             val handId = "${assignment["playerId"]}_hand_${assignment["handIndex"]}"
-            playerHands[handId] = allCards.subList(index * 13, (index + 1) * 13)
+            // Create a new list to avoid shared references
+            playerHands[handId] = allCards.subList(index * 13, (index + 1) * 13).toList()
+        }
+        
+        // Verify no duplicate cards across all hands
+        val allDealtCards = playerHands.values.flatten()
+        val uniqueCards = allDealtCards.map { "${it["suit"]}-${it["rank"]}" }.toSet()
+        if (uniqueCards.size != 52) {
+            println("❌ ERROR: Duplicate cards detected in deal! Unique: ${uniqueCards.size}, Total: ${allDealtCards.size}")
+            println("   Hands: $playerHands")
+        } else {
+            println("✓ Deal verified: 52 unique cards distributed")
         }
         
         // Check for misdeals

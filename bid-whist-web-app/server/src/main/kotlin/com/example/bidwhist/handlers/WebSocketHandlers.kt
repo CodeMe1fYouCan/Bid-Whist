@@ -14,6 +14,8 @@ suspend fun handlePlayerJoined(
     session: DefaultWebSocketSession,
     objectMapper: ObjectMapper
 ) {
+    room.updateActivity() // Track activity
+    
     val player = message.player ?: return
     println("PLAYER_JOINED received: ${player.name} (ID: ${player.id}) in room ${room.roomCode}")
     
@@ -37,6 +39,8 @@ suspend fun handleUpdateHandCount(
     message: WebSocketMessage,
     objectMapper: ObjectMapper
 ) {
+    room.updateActivity() // Track activity
+    
     val playerId = message.playerId ?: return
     val handCount = message.handCount ?: return
     

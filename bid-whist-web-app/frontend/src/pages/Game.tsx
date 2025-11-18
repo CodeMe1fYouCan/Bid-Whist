@@ -6,6 +6,7 @@ import DealerSelection from "../components/DealerSelection";
 import BiddingPhase from "../components/BiddingPhase";
 import TrumpSelection from "../components/TrumpSelection";
 import GameBoard from "../components/GameBoard";
+import { getWebSocketUrl } from "../config";
 
 const Game = () => {
   const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
@@ -43,7 +44,7 @@ const Game = () => {
   const currentTrickRef = useRef<any[]>([]);
 
   const { sendMessage, messages, isConnected } = useWebSocket(
-    `ws://localhost:8080/room/${roomCode}`
+    getWebSocketUrl(roomCode)
   );
 
   /* Load current user */
@@ -75,7 +76,8 @@ const Game = () => {
         playerInfo = {
           ...playerInfo,
           handCount: fullPlayer.handCount || 1,
-          handTeams: fullPlayer.handTeams || { 0: "Us" }
+          handTeams: fullPlayer.handTeams || { 0: "Us" },
+          handNames: fullPlayer.handNames || { 0: user.name }
         };
       }
       

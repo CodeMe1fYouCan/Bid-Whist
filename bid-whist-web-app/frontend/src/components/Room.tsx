@@ -3,6 +3,7 @@ import { useParams, useHistory } from "react-router-dom";
 import useWebSocket from "../hooks/useWebSocket";
 import { isValidRoomCode } from "../utils/roomCodeValidator";
 import { removeUserFromRoom } from "../utils/roomManager";
+import { getWebSocketUrl } from "../config";
 
 /** FULLY VALID + STYLED ROOM COMPONENT */
 const Room: React.FC = () => {
@@ -23,7 +24,7 @@ const Room: React.FC = () => {
   const joinedRef = useRef(false);
 
   const { sendMessage, messages, isConnected } = useWebSocket(
-    isValidRoomCode(roomCode) ? `ws://localhost:8080/room/${roomCode}` : ""
+    isValidRoomCode(roomCode) ? getWebSocketUrl(roomCode) : ""
   );
 
   /** AUTO-REJOIN SESSION */

@@ -9,7 +9,7 @@ data class Player @JsonCreator constructor(
     @JsonProperty("isReady") var isReady: Boolean = false,
     @JsonProperty("handCount") var handCount: Int = 1,
     @JsonProperty("handTeams") var handTeams: MutableMap<Int, String> = mutableMapOf(0 to "Us"),
-    @JsonProperty("handNames") var handNames: MutableMap<Int, String> = mutableMapOf(0 to name)
+    @JsonProperty("handNames") var handNames: MutableMap<Int, String> = mutableMapOf()
 )
 
 data class WebSocketMessage @JsonCreator constructor(
@@ -33,5 +33,15 @@ data class RoomState(
     val players: MutableList<Player> = mutableListOf(),
     val connections: MutableMap<String, io.ktor.http.cio.websocket.DefaultWebSocketSession> = mutableMapOf(),
     val createdAt: Long = System.currentTimeMillis(),
+    var lastActivity: Long = System.currentTimeMillis(),
     var gameState: MutableMap<String, Any>? = null
-)
+) {
+    fun updateActivity() {
+        lastActivity = System.currentTimeMillis()
+    }
+    
+    fun isInactive(timeoutMinutes: Long): Boolean {
+        val timeoutMillis = timeoutMinutes * 60 * 1000
+        return System.currentTimeMillis() - lastActivity > timeoutMillis
+    }
+}

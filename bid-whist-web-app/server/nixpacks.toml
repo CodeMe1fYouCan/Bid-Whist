@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["openjdk11"]
+
+[phases.build]
+cmds = ["./gradlew shadowJar --no-daemon"]
+
+[start]
+cmd = "java -jar build/libs/bid-whist-web-app-1.0-SNAPSHOT-all.jar"

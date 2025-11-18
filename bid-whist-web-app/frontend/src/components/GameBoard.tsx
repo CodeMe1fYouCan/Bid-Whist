@@ -180,9 +180,8 @@ export default function GameBoard(props: GameBoardProps) {
         card
       });
       props.handleCardPlay(activeHandId, card);
-      // Check if next player is also mine and switch proactively
-      scheduleHandSwitchAfterPlay();
-      // Don't remove locally - wait for server to send updated playerHands
+      // Don't switch hands here - wait for server to confirm the play was valid
+      // The useEffect watching currentPlayerIndex will handle the switch
     }
   };
 
@@ -222,38 +221,7 @@ export default function GameBoard(props: GameBoardProps) {
     setDraggedCard(null);
   };
 
-  // Helper to schedule hand switch after playing a card
-  const scheduleHandSwitchAfterPlay = () => {
-    if (myHandAssignments.length <= 1) return; // Only one hand, no need to switch
-    
-    // Check if the next player in turn order is also controlled by me
-    const nextPlayerIndex = ((props.currentPlayerIndex ?? 0) + 1) % 4;
-    const nextHand = handAssignments[nextPlayerIndex];
-    
-    if (nextHand && nextHand.playerId === currentUserId) {
-      // Next hand is mine! Schedule a switch
-      const nextHandIndex = myHandAssignments.findIndex(
-        (h: any) => String(h.handIndex) === String(nextHand.handIndex)
-      );
-      
-      if (nextHandIndex !== -1 && nextHandIndex !== delayedActiveHandIndex) {
-        console.log("⏱️ Next player is also mine, scheduling switch to hand index:", nextHandIndex);
-        
-        // Clear any existing timeout
-        if (handSwitchTimeoutRef.current) {
-          clearTimeout(handSwitchTimeoutRef.current);
-        }
-        
-        // Schedule the switch with a delay
-        handSwitchTimeoutRef.current = setTimeout(() => {
-          console.log("✅ Switching to next hand:", nextHandIndex);
-          setDelayedActiveHandIndex(nextHandIndex);
-        }, 1500);
-      }
-    }
-  };
-
-  // Handle drop on center to play card
+// Handle drop on center to play card
   const handleDropOnCenter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -266,9 +234,8 @@ export default function GameBoard(props: GameBoardProps) {
     if (phase === "PLAYING" && isMyTurnToPlay && draggedCard && props.handleCardPlay && activeHandId) {
       console.log("✅ Playing card via drop");
       props.handleCardPlay(activeHandId, draggedCard);
-      // Check if next player is also mine and switch proactively
-      scheduleHandSwitchAfterPlay();
-      // Don't remove locally - wait for server to send updated playerHands
+      // Don't switch hands here - wait for server to confirm the play was valid
+      // The useEffect watching currentPlayerIndex will handle the switch
     } else {
       console.log("❌ Cannot play card:", {
         phase,
