@@ -66,10 +66,18 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
     playerHands[handId] = currentHand
     println("✓ Card removed. Hand now has ${currentHand.size} cards")
     
+    // Check if this is a trump cut (playing trump on a different suit)
+    val trumpSuit = gameState["trumpSuit"] as? String
+    val isTrumpCut = leadSuit != null && 
+                     leadSuit != trumpSuit && 
+                     card["suit"] == trumpSuit && 
+                     playedCards.isNotEmpty()
+    
     playedCards.add(mapOf(
         "handId" to handId,
         "handIndex" to playerIndex,
-        "card" to card
+        "card" to card,
+        "isTrumpCut" to isTrumpCut
     ))
     
     if (playedCards.size == 1) {
@@ -155,7 +163,8 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
                 "card" to card,
                 "currentPlayerIndex" to nextPlayerIndex,
                 "playedCards" to playedCards,
-                "playerHands" to playerHands
+                "playerHands" to playerHands,
+                "isTrumpCut" to isTrumpCut
             )
         )
         room.connections.values.forEach { session ->

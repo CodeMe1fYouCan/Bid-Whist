@@ -41,12 +41,23 @@ export default function GameBoard(props: GameBoardProps) {
   // Determine which hand should be shown at the bottom (active hand)
   // During bidding/playing, show the current active hand if it belongs to the user
   let targetActiveHandIndex = 0; // Default to first hand
-  if ((phase === "BIDDING" || phase === "TRUMP_SELECTION") && handAssignments.length > 0) {
+  if (phase === "BIDDING" && handAssignments.length > 0) {
     const currentHand = handAssignments[props.currentBidderIndex ?? 0];
     if (currentHand && currentHand.playerId === currentUserId) {
       // Find which of my hands is currently active
       targetActiveHandIndex = myHandAssignments.findIndex(
         (h: any) => h.handIndex === currentHand.handIndex
+      );
+      if (targetActiveHandIndex === -1) targetActiveHandIndex = 0;
+    }
+  } else if (phase === "TRUMP_SELECTION" && props.bidWinnerHandId) {
+    // During trump selection, show the hand that won the bid
+    const bidWinnerHand = handAssignments.find((h: any) => 
+      `${h.playerId}_hand_${h.handIndex}` === props.bidWinnerHandId
+    );
+    if (bidWinnerHand && bidWinnerHand.playerId === currentUserId) {
+      targetActiveHandIndex = myHandAssignments.findIndex(
+        (h: any) => h.handIndex === bidWinnerHand.handIndex
       );
       if (targetActiveHandIndex === -1) targetActiveHandIndex = 0;
     }

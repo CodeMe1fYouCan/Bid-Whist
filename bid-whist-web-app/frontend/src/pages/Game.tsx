@@ -7,6 +7,7 @@ import BiddingPhase from "../components/BiddingPhase";
 import TrumpSelection from "../components/TrumpSelection";
 import GameBoard from "../components/GameBoard";
 import { getWebSocketUrl } from "../config";
+import { playMeowSound } from "../utils/soundEffects";
 
 const Game = () => {
   const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
@@ -146,6 +147,13 @@ const Game = () => {
     
     if (data.type === "CARD_PLAYED") {
       console.log("📥 CARD_PLAYED received:", data);
+      
+      // Play meow sound if this was a trump cut
+      if (data.isTrumpCut) {
+        console.log("🐱 Trump cut detected! Playing meow sound");
+        playMeowSound();
+      }
+      
       if (data.playedCards) {
         console.log("   Setting currentTrick to:", data.playedCards);
         setCurrentTrick(data.playedCards);
