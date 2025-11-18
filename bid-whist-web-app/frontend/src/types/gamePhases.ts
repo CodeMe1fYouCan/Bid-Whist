@@ -50,5 +50,6 @@ export interface CompletePhaseState {
   readyPlayers?: string[];
   totalPoints?: Record<string, number>;
   teamScores?: Record<string, number>;
+  pointsToWin?: number;
   onHandCompleteReady?: () => void;
 }

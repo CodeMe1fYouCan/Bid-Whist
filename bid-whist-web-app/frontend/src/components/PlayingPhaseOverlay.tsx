@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import Card from "./Card";
 
 interface PlayingPhaseOverlayProps {
@@ -45,6 +45,29 @@ export default function PlayingPhaseOverlay({
   const defendingTricksNeeded = 8 - winningBid;
 
   const isHandComplete = phase === "HAND_COMPLETE" || phase === "GAME_COMPLETE";
+
+  // Track previous trick length to detect new cards
+  const prevTrickLength = useRef(currentTrick.length);
+  
+  // Preload/reuse audio instance
+  const playAudio = useRef<HTMLAudioElement | null>(null);
+  
+  useEffect(() => {
+    if (!playAudio.current) {
+      playAudio.current = new Audio("/audio/card-played.mp3");
+    }
+  }, []);
+  
+  // Detect when a new card is added
+  useEffect(() => {
+    if (currentTrick.length > prevTrickLength.current) {
+      // A card was just played!
+      playAudio.current?.play().catch(() => {
+        // Silently fail if audio can't play (e.g., autoplay restrictions)
+      });
+    }
+    prevTrickLength.current = currentTrick.length;
+  }, [currentTrick]);
 
   return (
     <>

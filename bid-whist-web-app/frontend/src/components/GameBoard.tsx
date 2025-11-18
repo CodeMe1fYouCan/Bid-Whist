@@ -395,6 +395,8 @@ export default function GameBoard(props: GameBoardProps) {
           highestBid={props.highestBid ?? 0}
           dealerIndex={props.dealerIndex ?? 0}
           handleBid={props.handleBid}
+          teamScores={props.teamScores}
+          pointsToWin={props.pointsToWin}
         />
       )}
 

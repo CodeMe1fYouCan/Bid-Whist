@@ -15,6 +15,7 @@ const Room: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [handCount, setHandCount] = useState(1);
   const [handTeams, setHandTeams] = useState<Record<number, string>>({ 0: "Us" });
+  const [handCharacters, setHandCharacters] = useState<Record<number, 'reddy' | 'oatmeal'>>({ 1: "reddy", 2: "oatmeal" });
   const [isReady, setIsReady] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -35,6 +36,11 @@ const Room: React.FC = () => {
   useEffect(() => {
     if (!currentUser || !isConnected || joinedRef.current) return;
 
+    // Build hand names: first hand is player's name, others are character choices
+    const handNames: Record<number, string> = { 0: currentUser.name };
+    if (handCount >= 2) handNames[1] = handCharacters[1] === 'reddy' ? 'Reddy' : 'Oatmeal';
+    if (handCount >= 3) handNames[2] = handCharacters[2] === 'reddy' ? 'Reddy' : 'Oatmeal';
+
     sendMessage(
       JSON.stringify({
         type: "PLAYER_JOINED",
@@ -44,6 +50,7 @@ const Room: React.FC = () => {
           isReady: false,
           handCount,
           handTeams,
+          handNames,
         },
       })
     );
@@ -91,14 +98,21 @@ const Room: React.FC = () => {
   const handleHandCount = (count) => {
     setHandCount(count);
     
-    // Initialize teams for new hands
+    // Initialize teams and characters for new hands
     const newHandTeams = { ...handTeams };
+    const newHandCharacters = { ...handCharacters };
     for (let i = 0; i < count; i++) {
       if (newHandTeams[i] === undefined) {
         newHandTeams[i] = "Us";
       }
+      // Only set character for hands 2 and 3 (index 1 and 2)
+      if (i > 0 && newHandCharacters[i] === undefined) {
+        // Alternate between Reddy and Oatmeal for additional hands
+        newHandCharacters[i] = i === 1 ? "reddy" : "oatmeal";
+      }
     }
     setHandTeams(newHandTeams);
+    setHandCharacters(newHandCharacters);
     
     if (!currentUser) return;
 
@@ -122,6 +136,24 @@ const Room: React.FC = () => {
         playerId: currentUser.id,
         handIndex: handIndex,
         team: newTeam,
+      })
+    );
+  };
+
+  /** CHANGE CHARACTER FOR SPECIFIC HAND */
+  const handleCharacter = (handIndex: number, character: 'reddy' | 'oatmeal') => {
+    setHandCharacters(prev => ({ ...prev, [handIndex]: character }));
+    
+    if (!currentUser) return;
+
+    const characterName = character === 'reddy' ? 'Reddy' : 'Oatmeal';
+    
+    sendMessage(
+      JSON.stringify({
+        type: "UPDATE_HAND_NAME",
+        playerId: currentUser.id,
+        handIndex: handIndex,
+        handName: characterName,
       })
     );
   };
@@ -197,24 +229,52 @@ const Room: React.FC = () => {
 
           {/* TEAM SELECT PER HAND */}
           <div>
-            <h2 className="text-lg font-semibold text-white mb-3">Team Selection</h2>
+            <h2 className="text-lg font-semibold text-white mb-3">Hand Configuration</h2>
             <div className="space-y-3">
               {Array.from({ length: handCount }, (_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <span className="text-white font-semibold w-20">Hand {i + 1}:</span>
-                  <div className="flex gap-3">
-                    {["Us", "Them"].map((t) => (
-                      <button
-                        key={t}
-                        onClick={() => handleTeam(i, t)}
-                        disabled={isReady}
-                        className={`px-5 py-2 rounded-xl font-bold transition shadow-md backdrop-blur-lg border border-white/20
-                          ${handTeams[i] === t ? "bg-gray-500 text-white opacity-70 cursor-not-allowed" : "bg-white/20 text-gray-200 hover:bg-white/30"}
-                          ${isReady ? "opacity-40 cursor-not-allowed" : ""}`}
-                      >
-                        {t}
-                      </button>
-                    ))}
+                <div key={i} className="p-3 bg-white/5 rounded-xl border border-white/20">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-white font-semibold w-20">Hand {i + 1}:</span>
+                    {i === 0 ? (
+                      <span className="text-purple-300 font-semibold">{currentUser?.name}</span>
+                    ) : (
+                      <div className="flex gap-2">
+                        {[
+                          { value: 'reddy', label: '🐱 Reddy', color: 'bg-orange-600 hover:bg-orange-700' },
+                          { value: 'oatmeal', label: '🦙 Oatmeal', color: 'bg-amber-600 hover:bg-amber-700' }
+                        ].map((char) => (
+                          <button
+                            key={char.value}
+                            onClick={() => handleCharacter(i, char.value as 'reddy' | 'oatmeal')}
+                            disabled={isReady}
+                            className={`px-4 py-1 rounded-lg font-bold transition shadow-md text-sm
+                              ${handCharacters[i] === char.value 
+                                ? `${char.color} text-white` 
+                                : "bg-white/20 text-gray-300 hover:bg-white/30"}
+                              ${isReady ? "opacity-40 cursor-not-allowed" : ""}`}
+                          >
+                            {char.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-gray-400 text-sm w-20">Team:</span>
+                    <div className="flex gap-3">
+                      {["Us", "Them"].map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => handleTeam(i, t)}
+                          disabled={isReady}
+                          className={`px-5 py-2 rounded-xl font-bold transition shadow-md backdrop-blur-lg border border-white/20
+                            ${handTeams[i] === t ? "bg-gray-500 text-white opacity-70 cursor-not-allowed" : "bg-white/20 text-gray-200 hover:bg-white/30"}
+                            ${isReady ? "opacity-40 cursor-not-allowed" : ""}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -285,9 +345,18 @@ const Room: React.FC = () => {
                 <div className="text-gray-300 text-sm space-y-1">
                   {Array.from({ length: p.handCount }, (_, i) => {
                     const team = p.handTeams?.[i] || "Us";
+                    const handName = p.handNames?.[i] || (i === 0 ? p.name : "");
                     return (
                       <div key={i} className="flex items-center gap-2">
                         <span className="font-semibold">Hand {i + 1}:</span>
+                        {handName && (
+                          <span className="text-purple-300">
+                            {handName === 'Reddy' && '🐱 '}
+                            {handName === 'Oatmeal' && '🦙 '}
+                            {handName}
+                          </span>
+                        )}
+                        <span className="text-gray-500">-</span>
                         <span className={team === "Us" ? "text-blue-400" : "text-red-400"}>
                           {team}
                         </span>

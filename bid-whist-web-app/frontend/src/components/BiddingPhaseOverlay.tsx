@@ -8,6 +8,8 @@ interface BiddingPhaseOverlayProps extends Omit<BiddingPhaseState, 'bidWinnerHan
   bids: any[];
   highestBid: number;
   dealerIndex: number;
+  teamScores?: Record<string, number>;
+  pointsToWin?: number;
 }
 
 export default function BiddingPhaseOverlay({
@@ -18,6 +20,8 @@ export default function BiddingPhaseOverlay({
   dealerIndex,
   currentUserId,
   handleBid,
+  teamScores,
+  pointsToWin = 11,
 }: BiddingPhaseOverlayProps) {
   const [bidInput, setBidInput] = React.useState<string>("");
 
@@ -42,11 +46,42 @@ export default function BiddingPhaseOverlay({
   const canPass = !(passCount === 3 && highestBid === 0);
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center z-10">
-      <div
-        className="text-white p-10 rounded-3xl shadow-2xl max-w-3xl max-h-[85vh] overflow-y-auto border-4 border-white/20"
-        style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "1.1rem" }}
-      >
+    <>
+      {/* Game Score - top right */}
+      {teamScores && (
+        <div
+          className="absolute text-center bg-black/80 px-8 py-5 rounded-lg border-2 border-yellow-400/50 z-20"
+          style={{ top: "8vh", right: "15%", color: "#ffffff" }}
+        >
+          <div className="font-bold mb-3" style={{ fontSize: "1.75rem", color: "#ffffff" }}>
+            Game Score
+          </div>
+          <div className="grid grid-cols-2 gap-6" style={{ fontSize: "1.25rem" }}>
+            <div>
+              <div className="font-bold mb-1" style={{ color: "#c084fc" }}>Us</div>
+              <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
+                {teamScores.Us || 0}
+              </div>
+            </div>
+            <div>
+              <div className="font-bold mb-1" style={{ color: "#93c5fd" }}>Them</div>
+              <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
+                {teamScores.Them || 0}
+              </div>
+            </div>
+          </div>
+          <div className="text-center text-sm mt-3 opacity-70" style={{ color: "#ffffff" }}>
+            First to {pointsToWin} wins
+          </div>
+        </div>
+      )}
+
+      {/* Bidding Overlay - centered */}
+      <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+        <div
+          className="text-white p-10 rounded-3xl shadow-2xl max-w-3xl max-h-[85vh] overflow-y-auto border-4 border-white/20 pointer-events-auto"
+          style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "1.1rem" }}
+        >
         <div className="space-y-6">
           <h2 className="text-4xl font-bold text-center" style={{ color: "#ffffff" }}>
             Bidding Phase
@@ -172,7 +207,8 @@ export default function BiddingPhaseOverlay({
             </div>
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
