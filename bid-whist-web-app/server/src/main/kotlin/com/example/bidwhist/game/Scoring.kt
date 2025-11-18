@@ -23,15 +23,25 @@ suspend fun scoreHand(room: RoomState, objectMapper: ObjectMapper) {
     val defendingTeamTricks = tricksWon[defendingTeam] ?: 0
     
     val tricksNeeded = 6 + highestBid
+    
+    // Check if trump is "no-trump" for point doubling
+    val trumpSuit = gameState["trumpSuit"] as? String
+    val isNoTrump = trumpSuit == "no-trump"
     val pointsScored: Map<String, Int>
     
     if (biddingTeamTricks >= tricksNeeded) {
-        val points = kotlin.math.max(0, biddingTeamTricks - 6)
+        var points = kotlin.math.max(0, biddingTeamTricks - 6)
+        if (isNoTrump) {
+            points *= 2  // Double points for no-trump
+        }
         teamScores[biddingTeam] = (teamScores[biddingTeam] ?: 0) + points
         totalPoints[biddingTeam] = (totalPoints[biddingTeam] ?: 0) + points
         pointsScored = mapOf(biddingTeam to points, defendingTeam to 0)
     } else {
-        val points = highestBid + kotlin.math.max(0, defendingTeamTricks - 6)
+        var points = highestBid + kotlin.math.max(0, defendingTeamTricks - 6)
+        if (isNoTrump) {
+            points *= 2  // Double points for no-trump
+        }
         teamScores[defendingTeam] = (teamScores[defendingTeam] ?: 0) + points
         totalPoints[defendingTeam] = (totalPoints[defendingTeam] ?: 0) + points
         pointsScored = mapOf(biddingTeam to 0, defendingTeam to points)
