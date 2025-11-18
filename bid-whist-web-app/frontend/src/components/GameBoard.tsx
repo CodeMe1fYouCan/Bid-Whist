@@ -103,23 +103,15 @@ export default function GameBoard(props: GameBoardProps) {
       const currentHand = handAssignments[props.currentPlayerIndex ?? 0];
       const isMyTurn = currentHand && currentHand.playerId === currentUserId;
       
-      // Apply delay when:
-      // 1. It's currently my turn and I have multiple hands (switching after playing)
-      // 2. It's not my turn but the target hand is mine (switching to next hand I'll play)
-      const shouldDelay = phase === "PLAYING" && myHandAssignments.length > 1 && (
-        isMyTurn || 
-        myHandAssignments.some((h: any) => {
-          const targetHand = myHandAssignments[targetActiveHandIndex];
-          return targetHand && String(h.handIndex) === String(targetHand.handIndex);
-        })
-      );
+      // Apply 2.5s delay when in PLAYING phase and switching between my hands
+      const shouldDelay = phase === "PLAYING" && myHandAssignments.length > 1;
       
       if (shouldDelay) {
-        console.log("⏱️ Scheduling hand switch from", delayedActiveHandIndex, "to", targetActiveHandIndex, "in 2.5s");
+        console.log("⏱️ Scheduling hand switch from", delayedActiveHandIndex, "to", targetActiveHandIndex, "in 1.5s");
         handSwitchTimeoutRef.current = setTimeout(() => {
           console.log("✅ Switching to hand index:", targetActiveHandIndex);
           setDelayedActiveHandIndex(targetActiveHandIndex);
-        }, 2500); // 2.5 second delay
+        }, 1500); // 1.5 second delay
       } else {
         // Immediate switch for bidding/trump selection or first load
         console.log("⚡ Immediate switch to hand index:", targetActiveHandIndex);
@@ -256,7 +248,7 @@ export default function GameBoard(props: GameBoardProps) {
         handSwitchTimeoutRef.current = setTimeout(() => {
           console.log("✅ Switching to next hand:", nextHandIndex);
           setDelayedActiveHandIndex(nextHandIndex);
-        }, 2500);
+        }, 1500);
       }
     }
   };

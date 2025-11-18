@@ -12,9 +12,9 @@ const Room: React.FC = () => {
 
   const [players, setPlayers] = useState([]);
   const [hands, setHands] = useState({});
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [handCount, setHandCount] = useState(1);
-  const [team, setTeam] = useState("Us");
+  const [handTeams, setHandTeams] = useState<Record<number, string>>({ 0: "Us" });
   const [isReady, setIsReady] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -43,7 +43,7 @@ const Room: React.FC = () => {
           name: currentUser.name,
           isReady: false,
           handCount,
-          team,
+          handTeams,
         },
       })
     );
@@ -71,6 +71,13 @@ const Room: React.FC = () => {
       case "DEALER_SELECTION":
       case "GAME_STARTED":
         console.log("🎮 Game starting! Navigating to game page...");
+        // Save current player data to sessionStorage for game page
+        if (currentUser) {
+          const myPlayer = players.find(p => p.id === currentUser.id);
+          if (myPlayer) {
+            sessionStorage.setItem(`room_${roomCode}_player`, JSON.stringify(myPlayer));
+          }
+        }
         setGameStarted(true);
         history.push(`/game/${roomCode}`);
         break;
@@ -83,6 +90,16 @@ const Room: React.FC = () => {
   /** UPDATE HAND COUNT */
   const handleHandCount = (count) => {
     setHandCount(count);
+    
+    // Initialize teams for new hands
+    const newHandTeams = { ...handTeams };
+    for (let i = 0; i < count; i++) {
+      if (newHandTeams[i] === undefined) {
+        newHandTeams[i] = "Us";
+      }
+    }
+    setHandTeams(newHandTeams);
+    
     if (!currentUser) return;
 
     sendMessage(
@@ -94,15 +111,16 @@ const Room: React.FC = () => {
     );
   };
 
-  /** CHANGE TEAM */
-  const handleTeam = (newTeam) => {
-    setTeam(newTeam);
+  /** CHANGE TEAM FOR SPECIFIC HAND */
+  const handleTeam = (handIndex, newTeam) => {
+    setHandTeams(prev => ({ ...prev, [handIndex]: newTeam }));
     if (!currentUser) return;
 
     sendMessage(
       JSON.stringify({
         type: "UPDATE_TEAM",
         playerId: currentUser.id,
+        handIndex: handIndex,
         team: newTeam,
       })
     );
@@ -177,21 +195,28 @@ const Room: React.FC = () => {
             </div>
           </div>
 
-          {/* TEAM SELECT */}
+          {/* TEAM SELECT PER HAND */}
           <div>
             <h2 className="text-lg font-semibold text-white mb-3">Team Selection</h2>
-            <div className="flex gap-3">
-              {["Us", "Them"].map((t) => (
-                <button
-                  key={t}
-                  onClick={() => handleTeam(t)}
-                  disabled={isReady}
-                  className={`px-5 py-2 rounded-xl font-bold transition shadow-md backdrop-blur-lg border border-white/20
-                    ${team === t ? "bg-gray-500 text-white opacity-70 cursor-not-allowed" : "bg-white/20 text-gray-200 hover:bg-white/30"}
-                    ${isReady ? "opacity-40 cursor-not-allowed" : ""}`}
-                >
-                  {t}
-                </button>
+            <div className="space-y-3">
+              {Array.from({ length: handCount }, (_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-white font-semibold w-20">Hand {i + 1}:</span>
+                  <div className="flex gap-3">
+                    {["Us", "Them"].map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => handleTeam(i, t)}
+                        disabled={isReady}
+                        className={`px-5 py-2 rounded-xl font-bold transition shadow-md backdrop-blur-lg border border-white/20
+                          ${handTeams[i] === t ? "bg-gray-500 text-white opacity-70 cursor-not-allowed" : "bg-white/20 text-gray-200 hover:bg-white/30"}
+                          ${isReady ? "opacity-40 cursor-not-allowed" : ""}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
@@ -203,8 +228,18 @@ const Room: React.FC = () => {
           <div className="space-y-1 text-xs text-gray-400">
             {(() => {
               const totalHands = players.reduce((sum, p) => sum + p.handCount, 0);
-              const usHands = players.filter(p => p.team === "Us").reduce((sum, p) => sum + p.handCount, 0);
-              const themHands = players.filter(p => p.team === "Them").reduce((sum, p) => sum + p.handCount, 0);
+              
+              // Count hands by team
+              let usHands = 0;
+              let themHands = 0;
+              players.forEach(p => {
+                for (let i = 0; i < p.handCount; i++) {
+                  const team = p.handTeams?.[i] || "Us";
+                  if (team === "Us") usHands++;
+                  else themHands++;
+                }
+              });
+              
               const allReady = players.length > 0 && players.every(p => p.isReady);
               
               return (
@@ -231,27 +266,35 @@ const Room: React.FC = () => {
             {players.map((p) => (
               <div
                 key={p.id}
-                className={`p-4 rounded-xl border backdrop-blur-xl shadow-md flex justify-between items-center transition
-                  ${p.team === "Us" ? "border-blue-400 bg-blue-400/10" : "border-red-400 bg-red-400/10"}`}
+                className="p-4 rounded-xl border border-white/30 backdrop-blur-xl shadow-md transition bg-white/5"
               >
-                <div>
+                <div className="flex justify-between items-center mb-2">
                   <div className="flex items-center gap-2 text-white text-lg font-semibold">
                     {p.name}
                     {p.id === currentUser?.id && (
                       <span className="text-xs bg-purple-600 px-2 py-1 rounded-full">You</span>
                     )}
                   </div>
-                  <div className="text-gray-300 text-sm">
-                    {p.handCount} hand{p.handCount !== 1 ? "s" : ""} — {p.team}
-                  </div>
+                  <span
+                    className={`px-3 py-1 rounded-lg text-sm font-bold shadow-md
+                      ${p.isReady ? "bg-green-600 text-white" : "bg-gray-500 text-white"}`}
+                  >
+                    {p.isReady ? "Ready" : "Not Ready"}
+                  </span>
                 </div>
-
-                <span
-                  className={`px-3 py-1 rounded-lg text-sm font-bold shadow-md
-                    ${p.isReady ? "bg-green-600 text-white" : "bg-gray-500 text-white"}`}
-                >
-                  {p.isReady ? "Ready" : "Not Ready"}
-                </span>
+                <div className="text-gray-300 text-sm space-y-1">
+                  {Array.from({ length: p.handCount }, (_, i) => {
+                    const team = p.handTeams?.[i] || "Us";
+                    return (
+                      <div key={i} className="flex items-center gap-2">
+                        <span className="font-semibold">Hand {i + 1}:</span>
+                        <span className={team === "Us" ? "text-blue-400" : "text-red-400"}>
+                          {team}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>

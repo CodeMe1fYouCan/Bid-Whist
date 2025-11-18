@@ -22,15 +22,15 @@ export default function DealerReveal({
         style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "1.1rem" }}
       >
         <div className="space-y-6">
-          <h2 className="text-4xl font-bold text-center" style={{ color: "#ffffff" }}>
+          <h2 className="text-4xl font-bold text-center text-white">
             Dealer Selected!
           </h2>
 
           <div className="text-center">
-            <div className="text-2xl mb-4" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
+            <div className="text-2xl mb-4 text-white">
               Target Number:
             </div>
-            <div className="text-6xl font-bold mb-6" style={{ color: "#fbbf24" }}>
+            <div className="text-6xl font-bold mb-6 text-yellow-400">
               {targetNumber}
             </div>
           </div>
@@ -69,14 +69,14 @@ export default function DealerReveal({
 
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <div className="text-sm opacity-70">Guessed</div>
-                        <div className="text-2xl font-bold">{guess}</div>
+                        <div className="text-sm text-white/90">Guessed</div>
+                        <div className="text-2xl font-bold text-white">{guess}</div>
                       </div>
                       <div className="text-right">
-                        <div className="text-sm opacity-70">Difference</div>
+                        <div className="text-sm text-white/90">Difference</div>
                         <div
                           className={`text-2xl font-bold ${
-                            isDealer ? "text-green-400" : "text-gray-400"
+                            isDealer ? "text-green-400" : "text-white/80"
                           }`}
                         >
                           {diff}
@@ -92,7 +92,7 @@ export default function DealerReveal({
             })}
           </div>
 
-          <div className="text-center text-xl" style={{ color: "rgba(255, 255, 255, 0.8)" }}>
+          <div className="text-center text-xl text-white">
             Dealing cards...
           </div>
         </div>

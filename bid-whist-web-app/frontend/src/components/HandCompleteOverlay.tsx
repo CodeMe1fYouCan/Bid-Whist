@@ -1,5 +1,6 @@
 import React from "react";
 import type { CompletePhaseState } from "../types/gamePhases";
+import GameCompleteOverlay from "./GameCompleteOverlay";
 
 interface HandCompleteOverlayProps extends Omit<CompletePhaseState, 'teamScores'> {
   phase: string;
@@ -19,14 +20,27 @@ export default function HandCompleteOverlay({
   totalPoints,
   onHandCompleteReady,
 }: HandCompleteOverlayProps) {
+  // If game is complete, show the special game complete overlay
+  if (phase === "GAME_COMPLETE") {
+    return (
+      <GameCompleteOverlay
+        handCompleteData={handCompleteData}
+        handAssignments={handAssignments}
+        totalPoints={totalPoints}
+      />
+    );
+  }
+
   const bidMade =
     (handCompleteData.biddingTeamTricks || 0) >= (handCompleteData.tricksNeeded || 0);
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center z-10">
+    <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
       <div
-        className="text-white p-12 rounded-3xl shadow-2xl max-w-4xl border-4 border-yellow-400/50"
-        style={{ backgroundColor: "rgba(17, 24, 39, 0.97)" }}
+        className="text-white p-12 rounded-3xl shadow-2xl max-w-3xl border-4 border-yellow-400/50 pointer-events-auto"
+        style={{ 
+          backgroundColor: "rgba(17, 24, 39, 0.97)"
+        }}
       >
         <h2 className="text-4xl font-bold text-center mb-6 text-yellow-300">
           {phase === "GAME_COMPLETE" ? "Game Complete!" : "Hand Complete!"}

@@ -21,10 +21,10 @@ export default function DealerSelectionOverlay({
         style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "1.1rem" }}
       >
         <div className="space-y-6">
-          <h2 className="text-4xl font-bold text-center" style={{ color: "#ffffff" }}>
+          <h2 className="text-4xl font-bold text-center text-white">
             Dealer Selection
           </h2>
-          <p className="text-center text-lg" style={{ color: "#ffffff" }}>
+          <p className="text-center text-lg text-white">
             Each hand must guess a number 1–100. Closest becomes the dealer.
           </p>
 
@@ -60,7 +60,7 @@ export default function DealerSelectionOverlay({
                         {hand.playerName} — Hand {parseInt(hand.handIndex) + 1}
                         {isMine && <span className="text-yellow-300 ml-2">(You)</span>}
                       </div>
-                      <div className="text-sm" style={{ color: "rgba(255, 255, 255, 0.8)" }}>
+                      <div className="text-sm text-white/90">
                         Team: {hand.team}
                       </div>
                     </div>
@@ -98,7 +98,7 @@ export default function DealerSelectionOverlay({
                         </button>
                       </div>
                     ) : (
-                      <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>Waiting…</span>
+                      <span className="text-white/80">Waiting…</span>
                     )}
                   </div>
                 </div>
@@ -106,7 +106,7 @@ export default function DealerSelectionOverlay({
             })}
           </div>
 
-          <div className="text-center" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
+          <div className="text-center text-white text-lg">
             {Object.keys(dealerGuesses).length} / {handAssignments.length} hands guessed
           </div>
         </div>

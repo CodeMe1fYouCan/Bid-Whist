@@ -315,8 +315,9 @@ export default function Table({
       </div>
 
       {/* PLAYING PHASE INFO */}
-      {phase === "PLAYING" && (
+      {(phase === "PLAYING" || phase === "HAND_COMPLETE" || phase === "GAME_COMPLETE") && (
         <PlayingPhaseOverlay
+          phase={phase}
           trumpSuit={trumpSuit}
           trickNumber={trickNumber}
           tricksWon={tricksWon}

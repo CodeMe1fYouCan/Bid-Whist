@@ -16,6 +16,7 @@ interface PlayingPhaseOverlayProps {
   showTrickComplete: boolean;
   handleDropOnCenter: (e: React.DragEvent) => void;
   teamScores?: Record<string, number>;
+  phase?: string;
 }
 
 export default function PlayingPhaseOverlay({
@@ -33,6 +34,7 @@ export default function PlayingPhaseOverlay({
   showTrickComplete,
   handleDropOnCenter,
   teamScores = { Us: 0, Them: 0 },
+  phase = "PLAYING",
 }: PlayingPhaseOverlayProps) {
   // Determine bidding team
   const bidWinnerHand = handAssignments.find(
@@ -42,103 +44,130 @@ export default function PlayingPhaseOverlay({
   const tricksNeeded = 6 + winningBid;
   const defendingTricksNeeded = 8 - winningBid;
 
+  const isHandComplete = phase === "HAND_COMPLETE" || phase === "GAME_COMPLETE";
+
   return (
     <>
-      {/* Trump indicator - left of player's cards */}
-      <div
-        className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20"
-        style={{ bottom: "2vh", left: "10vw", color: "#ffffff" }}
-      >
-        <div className="text-sm mb-2" style={{ opacity: 0.7 }}>
-          Trump
+      {/* Trump indicator - left of player's cards - hide during hand complete */}
+      {!isHandComplete && (
+        <div
+          className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20"
+          style={{ bottom: "2vh", left: "10vw", color: "#ffffff" }}
+        >
+          <div className="text-sm mb-2" style={{ opacity: 0.7 }}>
+            Trump
+          </div>
+          {trumpSuit === "no-trump" ? (
+            <Card suit="hearts" rank="NO_TRUMP" faceUp width={90} height={135} />
+          ) : (
+            <Card
+              suit={trumpSuit as "hearts" | "diamonds" | "clubs" | "spades"}
+              rank="K"
+              faceUp
+              width={90}
+              height={135}
+            />
+          )}
         </div>
-        {trumpSuit === "no-trump" ? (
-          <Card suit="hearts" rank="NO_TRUMP" faceUp width={90} height={135} />
-        ) : (
-          <Card
-            suit={trumpSuit as "hearts" | "diamonds" | "clubs" | "spades"}
-            rank="K"
-            faceUp
-            width={90}
-            height={135}
-          />
-        )}
-      </div>
+      )}
 
-      {/* Game Score - top right */}
-      <div
-        className="absolute text-center bg-black/80 px-8 py-5 rounded-lg border-2 border-yellow-400/50 z-20"
-        style={{ top: "2vh", right: "10%", color: "#ffffff" }}
-      >
-        <div className="font-bold mb-3" style={{ fontSize: "1.75rem", color: "#ffffff" }}>
-          Game Score
-        </div>
-        <div className="grid grid-cols-2 gap-6" style={{ fontSize: "1.25rem" }}>
-          <div>
-            <div className="font-bold mb-1" style={{ color: "#c084fc" }}>Us</div>
-            <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
-              {teamScores.Us}
+      {/* Game Score - top right - hide during hand complete */}
+      {!isHandComplete && (
+        <div
+          className="absolute text-center bg-black/80 px-8 py-5 rounded-lg border-2 border-yellow-400/50 z-20"
+          style={{ top: "2vh", right: "10%", color: "#ffffff" }}
+        >
+          <div className="font-bold mb-3" style={{ fontSize: "1.75rem", color: "#ffffff" }}>
+            Game Score
+          </div>
+          <div className="grid grid-cols-2 gap-6" style={{ fontSize: "1.25rem" }}>
+            <div>
+              <div className="font-bold mb-1" style={{ color: "#c084fc" }}>Us</div>
+              <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
+                {teamScores.Us}
+              </div>
+            </div>
+            <div>
+              <div className="font-bold mb-1" style={{ color: "#93c5fd" }}>Them</div>
+              <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
+                {teamScores.Them}
+              </div>
             </div>
           </div>
-          <div>
-            <div className="font-bold mb-1" style={{ color: "#93c5fd" }}>Them</div>
-            <div className="text-4xl font-bold" style={{ color: "#fcd34d" }}>
-              {teamScores.Them}
-            </div>
-          </div>
         </div>
-      </div>
+      )}
 
-      {/* Trick info - top left */}
-      <div
-        className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20"
-        style={{ top: "2vh", right: "75%", color: "#ffffff" }}
-      >
-        <div className="font-bold" style={{ fontSize: "2.25rem" }}>
-          Trick {trickNumber}/13
-        </div>
-        <div className="mt-3 grid grid-cols-2 gap-4" style={{ fontSize: "1.25rem" }}>
-          <div>
-            <div className="font-bold text-purple-300">Us</div>
-            <div className="text-sm opacity-80 mb-1">
-              {handAssignments
-                .filter((h: any) => h.team === "Us")
-                .map((h: any) => h.playerName)
-                .join(", ")}
-            </div>
-            <div className="text-2xl font-bold text-yellow-300">{tricksWon.Us}</div>
-            {biddingTeam && (
-              <div className="text-xs opacity-70 mt-1">
-                Need {biddingTeam === "Us" ? tricksNeeded : defendingTricksNeeded}
-              </div>
-            )}
+      {/* Trick info - top left - hide during hand complete */}
+      {!isHandComplete && (
+        <div
+          className="absolute text-center bg-black/80 px-6 py-4 rounded-lg border-2 border-yellow-400/50 z-20"
+          style={{ top: "2vh", right: "75%", color: "#ffffff" }}
+        >
+          <div className="font-bold" style={{ fontSize: "2.25rem" }}>
+            Trick {trickNumber}/13
           </div>
-          <div>
-            <div className="font-bold text-blue-300">Them</div>
-            <div className="text-sm opacity-80 mb-1">
-              {handAssignments
-                .filter((h: any) => h.team === "Them")
-                .map((h: any) => h.playerName)
-                .join(", ")}
-            </div>
-            <div className="text-2xl font-bold text-yellow-300">{tricksWon.Them}</div>
-            {biddingTeam && (
-              <div className="text-xs opacity-70 mt-1">
-                Need {biddingTeam === "Them" ? tricksNeeded : defendingTricksNeeded}
+          <div className="mt-3 grid grid-cols-2 gap-4" style={{ fontSize: "1.25rem" }}>
+            <div>
+              <div className="font-bold text-purple-300">Us</div>
+              <div className="text-sm opacity-80 mb-1">
+                {handAssignments
+                  .filter((h: any) => h.team === "Us")
+                  .map((h: any) => h.playerName)
+                  .join(", ")}
               </div>
-            )}
+              <div className="text-2xl font-bold text-yellow-300">{tricksWon.Us}</div>
+              {biddingTeam && (
+                <div className="text-xs opacity-70 mt-1">
+                  Need {biddingTeam === "Us" ? tricksNeeded : defendingTricksNeeded}
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="font-bold text-blue-300">Them</div>
+              <div className="text-sm opacity-80 mb-1">
+                {handAssignments
+                  .filter((h: any) => h.team === "Them")
+                  .map((h: any) => h.playerName)
+                  .join(", ")}
+              </div>
+              <div className="text-2xl font-bold text-yellow-300">{tricksWon.Them}</div>
+              {biddingTeam && (
+                <div className="text-xs opacity-70 mt-1">
+                  Need {biddingTeam === "Them" ? tricksNeeded : defendingTricksNeeded}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Last Trick - bottom right */}
       {lastTrick.length === 4 && (
         <div
-          className="absolute bg-black/80 px-6 py-5 rounded-lg border-2 border-white/30 z-20"
+          className="absolute bg-black/90 px-6 py-5 rounded-lg border-2 border-yellow-400/50 z-50"
           style={{ bottom: "2vh", right: "2vw", color: "#ffffff" }}
         >
           <div className="text-xl mb-3 text-center font-semibold" style={{ opacity: 0.85 }}>
-            Last Trick
+            Last Trick{" "}
+            {(() => {
+              // Find the winner's team
+              const winnerPlay = lastTrick.find((play: any) => play.handId === lastTrickWinner);
+              if (winnerPlay) {
+                const winnerHand = handAssignments.find(
+                  (h: any) => `${h.playerId}_hand_${h.handIndex}` === winnerPlay.handId
+                );
+                if (winnerHand) {
+                  const team = winnerHand.team;
+                  const teamColor = team === "Us" ? "#c084fc" : "#93c5fd";
+                  return (
+                    <span style={{ color: teamColor }}>
+                      ({team})
+                    </span>
+                  );
+                }
+              }
+              return null;
+            })()}
           </div>
           <div className="flex gap-2">
             {lastTrick.map((play: any, idx: number) => {
@@ -167,29 +196,30 @@ export default function PlayingPhaseOverlay({
         </div>
       )}
 
-      {/* Played cards in center - DROP ZONE */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div
-          className="relative pointer-events-auto flex items-center justify-center"
-          onDragOver={(e: React.DragEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onDragEnter={(e: React.DragEvent) => {
-            console.log("🎯 Drag entered drop zone");
-          }}
-          onDrop={(e: React.DragEvent) => {
-            console.log("🎯 Drop event fired in PlayingPhaseOverlay");
-            handleDropOnCenter(e);
-          }}
-          style={{
-            width: "500px",
-            height: "500px",
-            // Visual debug border (can be removed later)
-            border: "2px dashed rgba(251, 191, 36, 0.2)",
-            borderRadius: "50%",
-          }}
-        >
+      {/* Played cards in center - DROP ZONE - hide during hand complete */}
+      {!isHandComplete && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div
+            className="relative pointer-events-auto flex items-center justify-center"
+            onDragOver={(e: React.DragEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDragEnter={(e: React.DragEvent) => {
+              console.log("🎯 Drag entered drop zone");
+            }}
+            onDrop={(e: React.DragEvent) => {
+              console.log("🎯 Drop event fired in PlayingPhaseOverlay");
+              handleDropOnCenter(e);
+            }}
+            style={{
+              width: "500px",
+              height: "500px",
+              // Visual debug border (can be removed later)
+              border: "2px dashed rgba(251, 191, 36, 0.2)",
+              borderRadius: "50%",
+            }}
+          >
           {currentTrick.map((play: any, idx: number) => {
             // Position cards based on relative position to active player
             const activeHandGlobalIndex = activeHand
@@ -281,8 +311,9 @@ export default function PlayingPhaseOverlay({
               </div>
             );
           })}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

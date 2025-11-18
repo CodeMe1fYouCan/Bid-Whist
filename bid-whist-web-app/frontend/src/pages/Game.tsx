@@ -57,17 +57,31 @@ const Game = () => {
     if (!isConnected || !currentUserId || joinedRef.current) return;
     
     const stored = sessionStorage.getItem(`room_${roomCode}_user`);
+    const playerData = sessionStorage.getItem(`room_${roomCode}_player`);
+    
     if (stored) {
       const user = JSON.parse(stored);
+      let playerInfo = {
+        id: user.id,
+        name: user.name,
+        isReady: true,
+        handCount: 1,
+        handTeams: { 0: "Us" }
+      };
+      
+      // Try to get the full player data if available
+      if (playerData) {
+        const fullPlayer = JSON.parse(playerData);
+        playerInfo = {
+          ...playerInfo,
+          handCount: fullPlayer.handCount || 1,
+          handTeams: fullPlayer.handTeams || { 0: "Us" }
+        };
+      }
+      
       sendMessage(JSON.stringify({
         type: "PLAYER_JOINED",
-        player: {
-          id: user.id,
-          name: user.name,
-          isReady: true,
-          handCount: 1,
-          team: "Us"
-        }
+        player: playerInfo
       }));
       console.log("Game page: Sent PLAYER_JOINED to get game state");
       joinedRef.current = true;
@@ -82,7 +96,10 @@ const Game = () => {
 
     if (data.phase) setPhase(data.phase);
     if (data.players) setPlayers(data.players);
-    if (data.handAssignments) setHandAssignments(data.handAssignments);
+    if (data.handAssignments) {
+      console.log("📋 Received handAssignments:", data.handAssignments);
+      setHandAssignments(data.handAssignments);
+    }
     if (data.playerHands) {
       console.log("📇 Updating playerHands:", data.playerHands);
       setPlayerHands(data.playerHands);
@@ -156,7 +173,7 @@ const Game = () => {
         currentTrickRef.current = []; // Clear ref too
         setTrickWinnerHandId(null);
         setShowTrickComplete(false);
-      }, 2500);
+      }, 1500);
     }
     
     if (data.type === "PLAY_ERROR") {
@@ -197,17 +214,20 @@ const Game = () => {
   /* Build handAssignments if server doesn't send them */
   useEffect(() => {
     if (handAssignments.length === 0 && players.length > 0) {
+      console.log("🔨 Building handAssignments from players:", players);
       const built: any[] = [];
       players.forEach((p) => {
         for (let i = 0; i < p.handCount; i++) {
+          const team = p.handTeams?.[i] || "Us";
           built.push({
             playerId: p.id,
             playerName: p.name,
             handIndex: i.toString(),
-            team: p.team,
+            team: team,
           });
         }
       });
+      console.log("🔨 Built handAssignments:", built);
       setHandAssignments(built);
     }
   }, [players, handAssignments.length]);
