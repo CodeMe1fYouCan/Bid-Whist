@@ -219,6 +219,44 @@ export default function PlayingPhaseOverlay({
         </div>
       )}
 
+      {/* Winner seat glow */}
+      {showTrickComplete && trickWinnerHandId && (() => {
+        // Compute winner's relative position
+        const getRelativePositionFromHandId = (handId: string | null) => {
+          if (!handId || !activeHand) return null;
+          const activeIndex = handAssignments.findIndex((h: any) =>
+            h.playerId === activeHand.playerId &&
+            h.handIndex === activeHand.handIndex
+          );
+          const winner = handAssignments.find((h: any) => `${h.playerId}_hand_${h.handIndex}` === handId);
+          if (!winner) return null;
+          const winnerIndex = handAssignments.indexOf(winner);
+          return (winnerIndex - activeIndex + 4) % 4; // 0=you,1=left,2=across,3=right
+        };
+
+        const winnerPosition = getRelativePositionFromHandId(trickWinnerHandId);
+
+        return winnerPosition !== null ? (
+          <div className="pointer-events-none absolute inset-0">
+            {[
+              { pos: 0, className: "bottom-4 left-1/2 -translate-x-1/2" },
+              { pos: 1, className: "left-4 top-1/2 -translate-y-1/2" },
+              { pos: 2, className: "top-4 left-1/2 -translate-x-1/2" },
+              { pos: 3, className: "right-4 top-1/2 -translate-y-1/2" },
+            ].map((slot, i) => (
+              <div
+                key={i}
+                className={`absolute w-40 h-40 rounded-full transition-all duration-700 ${slot.className} ${
+                  winnerPosition === i ? "bg-yellow-400/20 blur-2xl scale-125" : "scale-75 opacity-0"
+                }`}
+                style={{ pointerEvents: "none" }}
+                aria-hidden
+              />
+            ))}
+          </div>
+        ) : null;
+      })()}
+
       {/* Played cards in center - DROP ZONE - hide during hand complete */}
       {!isHandComplete && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
