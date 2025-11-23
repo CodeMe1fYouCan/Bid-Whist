@@ -2,10 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from './Card';
 
-const DealingAnimation = () => {
+interface DealingAnimationProps {
+    dealerIndex?: number;
+}
+
+const DealingAnimation: React.FC<DealingAnimationProps> = ({ dealerIndex = 0 }) => {
     const [dealtCards, setDealtCards] = useState<number[]>([]);
 
-    // Total cards to animate (e.g., 12 cards, 3 rounds of 4)
+    // Total cards to animate (e.g., 12 cards, 3 rounds of 4 players)
     const totalCards = 12;
 
     useEffect(() => {
@@ -23,10 +27,14 @@ const DealingAnimation = () => {
         return () => clearInterval(dealInterval);
     }, []);
 
-    // Calculate target position based on player index (0=bottom, 1=left, 2=top, 3=right)
-    const getTargetPosition = (index: number) => {
-        const playerIndex = index % 4;
-        // Values are approximate percentages to move off-screen or to player hands
+    // Calculate target position based on dealing order
+    // Cards are dealt clockwise starting from the player after the dealer
+    const getTargetPosition = (cardIndex: number) => {
+        // Determine which player gets this card (dealing clockwise from dealer)
+        // First card goes to (dealerIndex + 1) % 4, then continues clockwise
+        const playerIndex = (dealerIndex + 1 + cardIndex) % 4;
+
+        // Map player index to screen position (0=bottom, 1=left, 2=top, 3=right)
         switch (playerIndex) {
             case 0: return { y: 400, x: 0, rotate: 0 };    // Bottom (Me)
             case 1: return { y: 0, x: -400, rotate: 90 };  // Left

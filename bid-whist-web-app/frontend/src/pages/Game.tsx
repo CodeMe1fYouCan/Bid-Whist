@@ -364,7 +364,7 @@ const Game = () => {
         />
       );
     } else if (phase === "DEALING") {
-      content = <DealingAnimation />;
+      content = <DealingAnimation dealerIndex={dealerIndex} />;
     } else {
       content = <div className="text-2xl text-white">{phase}</div>;
     }
@@ -396,11 +396,15 @@ const Game = () => {
           <div className="rotate-icon">📱 ↻</div>
           <h2>Please Rotate Your Device</h2>
           <p>For the best card game experience, please rotate your device to landscape mode.</p>
+          <p className="text-sm mt-2 opacity-80">
+            Can't rotate? Check if rotation lock is enabled in Control Center.
+          </p>
           <button
             onClick={() => setPortraitWarningDismissed(true)}
-            className="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 rounded-full text-sm font-semibold border border-white/40 transition-colors"
+            className="mt-6 px-8 py-3 bg-amber-500 hover:bg-amber-600 rounded-full text-base font-bold border-2 border-white shadow-lg transition-all transform hover:scale-105"
+            style={{ color: '#000' }}
           >
-            I'm already in landscape
+            Continue Anyway
           </button>
         </div>
       )}

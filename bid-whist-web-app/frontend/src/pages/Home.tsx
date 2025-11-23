@@ -164,9 +164,9 @@ const Home: React.FC = () => {
 
             <div className="glass-card rounded-2xl md:rounded-3xl p-6 md:p-10 w-full max-w-lg md:max-w-3xl lg:max-w-5xl z-10 shadow-2xl mx-auto my-auto">
                 <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold text-center mb-3 leading-tight" style={{ color: '#fbbf24', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
-                    <span className="inline-block align-middle w-[3em] h-[3em]">
+                    <span className="inline-block align-middle w-[2em] h-[2em]">
                         <img src="/cards/back.svg" alt="Bid Whist Logo" className="w-full h-full" />
-                    </span> Bid Whist <span className="inline-block align-middle w-[3em] h-[3em]">
+                    </span> Bid Whist <span className="inline-block align-middle w-[2em] h-[2em]">
                         <img src="/cards/no_trump.svg" alt="No Trump Logo" className="w-full h-full" />
                     </span>
                 </h1>
