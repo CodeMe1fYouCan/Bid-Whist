@@ -65,27 +65,27 @@ export default function Table({
 
   return (
     <div
-      className="relative flex items-center justify-center"
-      style={{ width: "88vw", height: "88vh" }}
+      className="relative flex items-center justify-center w-[95vw] h-[95vh] md:w-[90vw] md:h-[90vh] lg:w-[88vw] lg:h-[88vh]"
     >
       {/* Table Surface */}
       <div
-        className="absolute rounded-[80px] shadow-2xl"
+        className="absolute rounded-[40px] md:rounded-[60px] lg:rounded-[80px] shadow-2xl"
         style={{
           width: "100%",
           height: "100%",
           background: "#0b4d0b",
-          border: "18px solid #2c1f07",
+          border: "8px solid #2c1f07",
           boxShadow:
             "inset 0 0 90px rgba(0,0,0,0.85), inset 0 0 40px rgba(0,0,0,0.6), 0 0 40px rgba(0,0,0,0.5)",
         }}
+        className="md:border-[12px] lg:border-[18px]"
       />
 
       {/* Meow Meow Publishing Logo */}
       <div
         className="absolute text-center"
         style={{
-          opacity: 0.25,
+          opacity: 0.4,
           top: "50%",
           left: "50%",
           transform: "translate(-50%, -50%)",
@@ -93,11 +93,10 @@ export default function Table({
           zIndex: 1,
         }}
       >
-        <div style={{ fontSize: "8rem", marginBottom: "1rem" }}>🐱</div>
+        <div className="text-8xl md:text-8xl lg:text-9xl mb-2 md:mb-4">🐱</div>
         <div
-          className="font-bold"
+          className="font-bold text-5xl md:text-6xl lg:text-7xl"
           style={{
-            fontSize: "4rem",
             color: "#ffffff",
             fontFamily: "serif",
             lineHeight: 1,
@@ -106,11 +105,10 @@ export default function Table({
           Meow Meow
         </div>
         <div
+          className="text-2xl md:text-3xl lg:text-4xl mt-1 md:mt-2"
           style={{
-            fontSize: "2.5rem",
             color: "#ffffff",
             fontFamily: "serif",
-            marginTop: "0.5rem",
           }}
         >
           Publishing
@@ -124,17 +122,31 @@ export default function Table({
             displayCards.map((card: any, idx: number) => (
               <div
                 key={`${card.suit}-${card.rank}-${idx}`}
-                className={`cursor-move ${
-                  phase === "PLAYING" && !isMyTurnToPlay ? "opacity-70" : ""
-                }`}
+                className={`cursor-pointer touch-target ${phase === "PLAYING" && !isMyTurnToPlay ? "opacity-70" : ""
+                  }`}
                 draggable={true}
                 onDragStart={(e: React.DragEvent) => handleDragStart(e, idx, card)}
                 onDragOver={(e: React.DragEvent) => handleDragOver(e, idx)}
                 onDragEnd={() => handleDragEnd()}
                 onDrop={(e: React.DragEvent) => handleDrop(e)}
+                onTouchStart={(e: React.TouchEvent) => {
+                  if (phase === "PLAYING" && isMyTurnToPlay) {
+                    handleDragStart(e as any, idx, card);
+                  }
+                }}
+                onTouchMove={(e: React.TouchEvent) => {
+                  if (phase === "PLAYING" && isMyTurnToPlay) {
+                    e.preventDefault();
+                  }
+                }}
+                onTouchEnd={(e: React.TouchEvent) => {
+                  if (phase === "PLAYING" && isMyTurnToPlay) {
+                    handleDragEnd();
+                  }
+                }}
                 onDoubleClick={() => handleCardDoubleClick(card)}
                 style={{
-                  marginLeft: idx === 0 ? 0 : "-40px",
+                  marginLeft: idx === 0 ? 0 : "-28px",
                   opacity: draggedIndex === idx ? 0.5 : 1,
                   transition: "all 0.2s",
                   position: "relative",
@@ -144,15 +156,16 @@ export default function Table({
                       ? "drop-shadow(0 0 8px rgba(251, 191, 36, 0.8)) brightness(1.1)"
                       : "none",
                 }}
+                className="md:-ml-8 lg:-ml-10"
               >
-                <Card suit={card.suit} rank={card.rank} faceUp width={100} height={150} />
+                <Card suit={card.suit} rank={card.rank} faceUp width={70} height={105} className="md:w-20 md:h-[120px] lg:w-[100px] lg:h-[150px]" />
               </div>
             ))
           ) : (
             showCards && <div className="text-gray-400">No cards</div>
           )}
         </div>
-        <div className="text-2xl font-bold mt-2" style={{ color: "#ffffff" }}>
+        <div className="text-lg md:text-xl lg:text-2xl font-bold mt-2" style={{ color: "#ffffff" }}>
           {activeHand ? `${activeHand.playerName} (You)` : "You"}
           {phase === "PLAYING" && isMyTurnToPlay && (
             <span className="ml-2 text-yellow-300">← Your Turn!</span>
@@ -162,17 +175,17 @@ export default function Table({
 
       {/* ACROSS (Top) */}
       <div className="absolute top-[2vh] left-1/2 -translate-x-1/2 flex flex-col items-center text-white">
-        <div className="text-2xl font-bold mb-2" style={{ color: "#ffffff" }}>
+        <div className="text-lg md:text-xl lg:text-2xl font-bold mb-2" style={{ color: "#ffffff" }}>
           {getPlayerName("ACROSS")}
           {phase === "PLAYING" &&
             handAssignments.length > 0 &&
             (() => {
               const activeHandGlobalIndex = activeHand
                 ? handAssignments.findIndex(
-                    (h: any) =>
-                      h.playerId === activeHand.playerId &&
-                      h.handIndex === activeHand.handIndex
-                  )
+                  (h: any) =>
+                    h.playerId === activeHand.playerId &&
+                    h.handIndex === activeHand.handIndex
+                )
                 : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
               const acrossIndex = (activeHandGlobalIndex + 2) % 4;
               return (
@@ -187,9 +200,9 @@ export default function Table({
           (() => {
             const activeHandGlobalIndex = activeHand
               ? handAssignments.findIndex(
-                  (h: any) =>
-                    h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
-                )
+                (h: any) =>
+                  h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+              )
               : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
             const acrossIndex = (activeHandGlobalIndex + 2) % 4;
             const acrossHand = handAssignments[acrossIndex];
@@ -199,10 +212,10 @@ export default function Table({
             const cardCount = playerHands[acrossHandId]?.length ?? 13;
 
             return (
-              <div className="flex">
+              <div className="flex justify-center items-center">
                 {Array.from({ length: cardCount }).map((_, i) => (
-                  <div key={i} className="-ml-10 first:ml-0">
-                    <Card faceUp={false} width={60} height={90} />
+                  <div key={i} style={{ marginLeft: i === 0 ? 0 : "-24px" }} className="md:-ml-8 lg:-ml-10">
+                    <Card faceUp={false} width={45} height={68} className="md:w-12 md:h-[72px] lg:w-[60px] lg:h-[90px]" />
                   </div>
                 ))}
               </div>
@@ -211,18 +224,18 @@ export default function Table({
       </div>
 
       {/* LEFT */}
-      <div className="absolute left-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
-        <div className="text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: "#ffffff" }}>
+      <div className="absolute left-[2vw] top-[40%] -translate-y-1/2 flex flex-col items-center text-white">
+        <div className="text-lg md:text-xl lg:text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: "#ffffff" }}>
           {getPlayerName("LEFT")}
           {phase === "PLAYING" &&
             handAssignments.length > 0 &&
             (() => {
               const activeHandGlobalIndex = activeHand
                 ? handAssignments.findIndex(
-                    (h: any) =>
-                      h.playerId === activeHand.playerId &&
-                      h.handIndex === activeHand.handIndex
-                  )
+                  (h: any) =>
+                    h.playerId === activeHand.playerId &&
+                    h.handIndex === activeHand.handIndex
+                )
                 : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
               const leftIndex = (activeHandGlobalIndex + 1) % 4;
               return (
@@ -237,9 +250,9 @@ export default function Table({
           (() => {
             const activeHandGlobalIndex = activeHand
               ? handAssignments.findIndex(
-                  (h: any) =>
-                    h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
-                )
+                (h: any) =>
+                  h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+              )
               : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
             const leftIndex = (activeHandGlobalIndex + 1) % 4;
             const leftHand = handAssignments[leftIndex];
@@ -251,9 +264,9 @@ export default function Table({
             return (
               <div className="flex flex-col items-center">
                 {Array.from({ length: cardCount }).map((_, i) => (
-                  <div key={i} style={{ marginTop: i === 0 ? 0 : "-50px" }}>
+                  <div key={i} style={{ marginTop: i === 0 ? 0 : "-40px" }} className="md:-mt-[45px] lg:-mt-[50px]">
                     <div className="transform -rotate-90">
-                      <Card faceUp={false} width={60} height={90} />
+                      <Card faceUp={false} width={35} height={53} className="md:w-[50px] md:h-[75px] lg:w-[60px] lg:h-[90px]" />
                     </div>
                   </div>
                 ))}
@@ -263,18 +276,18 @@ export default function Table({
       </div>
 
       {/* RIGHT */}
-      <div className="absolute right-[2vw] top-1/2 -translate-y-1/2 flex flex-col items-center text-white">
-        <div className="text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: "#ffffff" }}>
+      <div className="absolute right-[2vw] top-[40%] -translate-y-1/2 flex flex-col items-center text-white">
+        <div className="text-lg md:text-xl lg:text-2xl font-bold mb-2 writing-vertical-rl" style={{ color: "#ffffff" }}>
           {getPlayerName("RIGHT")}
           {phase === "PLAYING" &&
             handAssignments.length > 0 &&
             (() => {
               const activeHandGlobalIndex = activeHand
                 ? handAssignments.findIndex(
-                    (h: any) =>
-                      h.playerId === activeHand.playerId &&
-                      h.handIndex === activeHand.handIndex
-                  )
+                  (h: any) =>
+                    h.playerId === activeHand.playerId &&
+                    h.handIndex === activeHand.handIndex
+                )
                 : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
               const rightIndex = (activeHandGlobalIndex + 3) % 4;
               return (
@@ -289,9 +302,9 @@ export default function Table({
           (() => {
             const activeHandGlobalIndex = activeHand
               ? handAssignments.findIndex(
-                  (h: any) =>
-                    h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
-                )
+                (h: any) =>
+                  h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+              )
               : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
             const rightIndex = (activeHandGlobalIndex + 3) % 4;
             const rightHand = handAssignments[rightIndex];
@@ -303,9 +316,9 @@ export default function Table({
             return (
               <div className="flex flex-col items-center">
                 {Array.from({ length: cardCount }).map((_, i) => (
-                  <div key={i} style={{ marginTop: i === 0 ? 0 : "-50px" }}>
+                  <div key={i} style={{ marginTop: i === 0 ? 0 : "-40px" }} className="md:-mt-[45px] lg:-mt-[50px]">
                     <div className="transform rotate-90">
-                      <Card faceUp={false} width={60} height={90} />
+                      <Card faceUp={false} width={35} height={53} className="md:w-[50px] md:h-[75px] lg:w-[60px] lg:h-[90px]" />
                     </div>
                   </div>
                 ))}

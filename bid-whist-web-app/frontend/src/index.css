@@ -259,3 +259,86 @@ h3 {
     font-size: 1.5em;
     margin: 10px 0;
 }
+
+/* ============================================
+   MOBILE LANDSCAPE ORIENTATION ENFORCEMENT
+   ============================================ */
+
+/* Portrait orientation warning overlay for mobile devices */
+@media (max-width: 768px) and (orientation: portrait) {
+    #portrait-warning {
+        display: flex !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.95);
+        z-index: 9999;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    #portrait-warning .rotate-icon {
+        font-size: 4rem;
+        margin-bottom: 1.5rem;
+        animation: rotatePhone 2s ease-in-out infinite;
+    }
+
+    #portrait-warning h2 {
+        color: #ffffff;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+
+    #portrait-warning p {
+        color: #cccccc;
+        font-size: 1rem;
+        max-width: 300px;
+    }
+}
+
+@keyframes rotatePhone {
+
+    0%,
+    100% {
+        transform: rotate(0deg);
+    }
+
+    50% {
+        transform: rotate(90deg);
+    }
+}
+
+/* Hide portrait warning in landscape */
+@media (orientation: landscape) {
+    #portrait-warning {
+        display: none !important;
+    }
+}
+
+/* Mobile-specific game board utilities */
+@media (max-width: 768px) {
+
+    /* Ensure game board fits in landscape mobile */
+    .game-container {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    /* Reduce padding on mobile */
+    .mobile-compact {
+        padding: 0.5rem !important;
+    }
+
+    /* Touch-friendly minimum sizes */
+    .touch-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}

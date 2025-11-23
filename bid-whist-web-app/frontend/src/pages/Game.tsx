@@ -40,7 +40,7 @@ const Game = () => {
   const [readyPlayers, setReadyPlayers] = useState<string[]>([]);
   const [totalPoints, setTotalPoints] = useState<Record<string, number>>({ Us: 0, Them: 0 });
   const [teamScores, setTeamScores] = useState<Record<string, number>>({ Us: 0, Them: 0 });
-  
+
   const joinedRef = useRef(false);
   const currentTrickRef = useRef<any[]>([]);
 
@@ -57,10 +57,10 @@ const Game = () => {
   /* Send PLAYER_JOINED when connected to get game state - ONCE */
   useEffect(() => {
     if (!isConnected || !currentUserId || joinedRef.current) return;
-    
+
     const stored = sessionStorage.getItem(`room_${roomCode}_user`);
     const playerData = sessionStorage.getItem(`room_${roomCode}_player`);
-    
+
     if (stored) {
       const user = JSON.parse(stored);
       let playerInfo = {
@@ -70,7 +70,7 @@ const Game = () => {
         handCount: 1,
         handTeams: { 0: "Us" }
       };
-      
+
       // Try to get the full player data if available
       if (playerData) {
         const fullPlayer = JSON.parse(playerData);
@@ -81,7 +81,7 @@ const Game = () => {
           handNames: fullPlayer.handNames || { 0: user.name }
         };
       }
-      
+
       sendMessage(JSON.stringify({
         type: "PLAYER_JOINED",
         player: playerInfo
@@ -120,13 +120,13 @@ const Game = () => {
     if (data.currentPlayerIndex !== undefined) setCurrentPlayerIndex(data.currentPlayerIndex);
     if (data.tricksWon) setTricksWon(data.tricksWon);
     if (data.trickNumber !== undefined) setTrickNumber(data.trickNumber);
-    
+
     if (data.type === "PLAYING_PHASE" || data.type === "PLAYING") {
       // Handle both new phase start and reconnection
       console.log("📥 PLAYING phase message received");
       console.log("   data.playedCards:", data.playedCards);
       console.log("   playedCards length:", data.playedCards?.length);
-      
+
       if (data.playedCards && data.playedCards.length > 0) {
         console.log("   ✓ Setting currentTrick with existing cards:", data.playedCards);
         setCurrentTrick(data.playedCards);
@@ -137,23 +137,23 @@ const Game = () => {
         currentTrickRef.current = [];
       }
     }
-    
+
     // Also handle if playedCards comes in any message during PLAYING phase
     if (data.phase === "PLAYING" && data.playedCards && data.playedCards.length > 0) {
       console.log("📥 Received playedCards in PLAYING phase message:", data.playedCards);
       setCurrentTrick(data.playedCards);
       currentTrickRef.current = data.playedCards;
     }
-    
+
     if (data.type === "CARD_PLAYED") {
       console.log("📥 CARD_PLAYED received:", data);
-      
+
       // Play meow sound if this was a trump cut
       if (data.isTrumpCut) {
         console.log("🐱 Trump cut detected! Playing meow sound");
         playMeowSound();
       }
-      
+
       if (data.playedCards) {
         console.log("   Setting currentTrick to:", data.playedCards);
         setCurrentTrick(data.playedCards);
@@ -162,18 +162,18 @@ const Game = () => {
         console.log("   ⚠️ No playedCards in message!");
       }
     }
-    
+
     if (data.type === "TRICK_COMPLETE") {
       console.log("🏆 TRICK_COMPLETE received:", data);
-      
+
       // Use the completed trick from server (more reliable than ref)
       const completedTrick = data.completedTrick || currentTrickRef.current || [];
       console.log("   Completed trick:", completedTrick);
-      
+
       // Show all 4 cards with winner highlighted
       setTrickWinnerHandId(data.winnerHandId);
       setShowTrickComplete(true);
-      
+
       // After animation, clear the trick and save to last trick
       setTimeout(() => {
         console.log("   Setting lastTrick to:", completedTrick);
@@ -185,28 +185,28 @@ const Game = () => {
         setShowTrickComplete(false);
       }, 1500);
     }
-    
+
     if (data.type === "PLAY_ERROR") {
       alert(data.message || "Invalid play!");
     }
-    
+
     if (data.type === "HAND_COMPLETE") {
       console.log("📋 HAND_COMPLETE received:", data);
       console.log("   Setting handCompleteData to:", data);
       setHandCompleteData(data);
       setReadyPlayers([]);
     }
-    
+
     if (data.type === "HAND_COMPLETE_READY_UPDATE") {
       console.log("✓ Ready update:", data);
       setReadyPlayers(data.readyPlayers || []);
     }
-    
+
     if (data.type === "GAME_COMPLETE") {
       console.log("🏆 GAME_COMPLETE received:", data);
       setHandCompleteData(data);
     }
-    
+
     if (data.type === "DEALER_GUESS_UPDATE") {
       setDealerGuesses(data.guesses || {});
     }
@@ -275,7 +275,7 @@ const Game = () => {
     if (phase === "PLAYING") return null;
 
     let content = null;
-    
+
     if (phase === "DEALER_SELECTION") {
       content = (
         <DealerSelection
@@ -319,7 +319,7 @@ const Game = () => {
       <div className="fixed inset-0 flex items-center justify-center z-50" style={{ pointerEvents: 'none' }}>
         <motion.div
           className="bg-black text-white p-8 rounded-3xl shadow-2xl max-w-4xl max-h-[90vh] overflow-y-auto"
-          style={{ 
+          style={{
             pointerEvents: 'auto',
             backgroundColor: 'rgba(0, 0, 0, 0.95)'
           }}
@@ -335,6 +335,13 @@ const Game = () => {
 
   return (
     <>
+      {/* Portrait Orientation Warning for Mobile */}
+      <div id="portrait-warning" style={{ display: 'none' }}>
+        <div className="rotate-icon">📱 ↻</div>
+        <h2>Please Rotate Your Device</h2>
+        <p>For the best card game experience, please rotate your device to landscape mode.</p>
+      </div>
+
       <GameBoard
         handAssignments={handAssignments}
         playerHands={playerHands}
@@ -368,7 +375,7 @@ const Game = () => {
         teamScores={teamScores}
         onHandCompleteReady={handleHandCompleteReady}
       />
-      
+
       {phase === "DEALING" && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div className="text-2xl text-white">Dealing Cards…</div>
