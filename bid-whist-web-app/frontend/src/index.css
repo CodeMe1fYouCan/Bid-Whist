@@ -1,16 +1,204 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Global Styles with Enhanced Accessibility */
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     color: #333;
     min-height: 100vh;
+    font-size: 18px;
+    /* Increased base font size for better readability */
 }
 
-h1, h2, h3 {
+/* Smoky Bar Background with Pool Table Atmosphere */
+@keyframes smokeFloat {
+    0% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform: translateY(-50vh) translateX(30px) scale(1.2);
+        opacity: 0.5;
+    }
+
+    100% {
+        transform: translateY(-100vh) translateX(-20px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+@keyframes smokeFloat2 {
+    0% {
+        transform: translateY(0) translateX(0) scale(1) rotate(0deg);
+        opacity: 0.2;
+    }
+
+    50% {
+        transform: translateY(-60vh) translateX(-40px) scale(1.3) rotate(180deg);
+        opacity: 0.4;
+    }
+
+    100% {
+        transform: translateY(-120vh) translateX(30px) scale(0.9) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+.smoky-bar-bg {
+    background:
+        /* Dark vignette overlay */
+        radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.7) 100%),
+        /* Warm amber lighting from above */
+        radial-gradient(ellipse at 50% 0%, rgba(255, 180, 100, 0.15) 0%, transparent 50%),
+        /* Pool table green accent */
+        radial-gradient(circle at 30% 70%, rgba(34, 139, 34, 0.1) 0%, transparent 40%),
+        /* Dark wood paneling base */
+        linear-gradient(135deg, #1a0f0a 0%, #2d1810 25%, #1f1108 50%, #2a1509 75%, #1a0f0a 100%);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 200% 200%;
+    position: relative;
+}
+
+/* Animated Smoke Wisps */
+.smoke-wisp {
+    position: absolute;
+    background: radial-gradient(circle, rgba(200, 200, 200, 0.4) 0%, rgba(150, 150, 150, 0.2) 30%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(40px);
+}
+
+.smoke-wisp-1 {
+    width: 300px;
+    height: 300px;
+    bottom: -150px;
+    left: 10%;
+    animation: smokeFloat 25s infinite;
+    animation-delay: 0s;
+}
+
+.smoke-wisp-2 {
+    width: 250px;
+    height: 250px;
+    bottom: -125px;
+    right: 20%;
+    animation: smokeFloat2 30s infinite;
+    animation-delay: 5s;
+}
+
+.smoke-wisp-3 {
+    width: 350px;
+    height: 350px;
+    bottom: -175px;
+    left: 50%;
+    animation: smokeFloat 35s infinite;
+    animation-delay: 10s;
+}
+
+.smoke-wisp-4 {
+    width: 200px;
+    height: 200px;
+    bottom: -100px;
+    right: 40%;
+    animation: smokeFloat2 28s infinite;
+    animation-delay: 15s;
+}
+
+/* Glassmorphism Effect */
+.glass-card {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+}
+
+/* Enhanced Glow Effects */
+@keyframes glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.5), 0 0 40px rgba(118, 75, 162, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 30px rgba(102, 126, 234, 0.8), 0 0 60px rgba(118, 75, 162, 0.5);
+    }
+}
+
+.glow-on-hover:hover {
+    animation: glow 2s ease-in-out infinite;
+}
+
+/* Floating Animation for Decorative Elements */
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0px) rotate(0deg);
+    }
+
+    33% {
+        transform: translateY(-20px) rotate(5deg);
+    }
+
+    66% {
+        transform: translateY(-10px) rotate(-5deg);
+    }
+}
+
+.float-animation {
+    animation: float 6s ease-in-out infinite;
+}
+
+/* Particle Background Effect */
+@keyframes particle-float {
+    0% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 0.6;
+    }
+
+    90% {
+        opacity: 0.6;
+    }
+
+    100% {
+        transform: translateY(-100vh) translateX(50px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+.particle {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+/* Smooth Transitions */
+* {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced Focus States for Accessibility */
+input:focus,
+button:focus {
+    outline: none;
+    ring-offset: 2px;
+}
+
+/* Existing Game Styles (preserved) */
+h1,
+h2,
+h3 {
     color: #2c3e50;
 }
 

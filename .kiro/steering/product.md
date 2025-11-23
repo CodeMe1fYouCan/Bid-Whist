@@ -10,6 +10,7 @@ Bid Whist Web Application is an online multiplayer card game platform that enabl
 - Team selection: players choose between "Us" and "Them" teams
 - Ready state management: all players must ready up before game starts
 - Standard Bid Whist rules with 52-card deck (13 cards per hand)
+- No-trump scoring: points are doubled when the trump suit is "no-trump"
 
 ## Game Start Requirements
 

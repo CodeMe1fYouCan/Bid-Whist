@@ -63,7 +63,7 @@ const Home: React.FC = () => {
             const backendUrl = import.meta.env.VITE_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || 'http://localhost:8080';
             const response = await fetch(`${backendUrl}/api/room/${code}/exists`);
             const data = await response.json();
-            
+
             if (data.exists) {
                 setError(`Room code "${code}" is already in use. Please choose another.`);
                 setLoading(false);
@@ -121,7 +121,7 @@ const Home: React.FC = () => {
             const backendUrl = import.meta.env.VITE_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || 'http://localhost:8080';
             const response = await fetch(`${backendUrl}/api/room/${code}/exists`);
             const data = await response.json();
-            
+
             if (!data.exists) {
                 setError(`Room "${code}" does not exist or has been closed.`);
                 setLoading(false);
@@ -151,106 +151,104 @@ const Home: React.FC = () => {
     const canJoin = isFormValid && joinCode.length >= 4;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-purple-600 via-pink-500 to-blue-500 flex flex-col items-center justify-center p-4">
-            {/* Decorative Llamas and Raccoons */}
-            <div className="absolute top-10 left-10 text-6xl animate-bounce">🦙</div>
-            <div className="absolute top-20 right-20 text-6xl animate-bounce" style={{animationDelay: '0.5s'}}>🐱</div>
-            <div className="absolute bottom-20 left-20 text-6xl animate-bounce" style={{animationDelay: '1s'}}>🦙</div>
-            <div className="absolute bottom-10 right-10 text-6xl animate-bounce" style={{animationDelay: '1.5s'}}>🐱</div>
+        <div className="smoky-bar-bg min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+            {/* Animated Smoke Wisps */}
+            <div className="smoke-wisp smoke-wisp-1"></div>
+            <div className="smoke-wisp smoke-wisp-2"></div>
+            <div className="smoke-wisp smoke-wisp-3"></div>
+            <div className="smoke-wisp smoke-wisp-4"></div>
 
-            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full z-10">
-                <h1 className="text-4xl font-bold text-center text-purple-600 mb-2">Bid Whist</h1>
-                <p className="text-center text-gray-600 mb-6">Play with your friends and family!</p>
-                
+            {/* Floating Card Suit Decorations */}
+            <div className="absolute top-10 left-10 text-9xl float-animation opacity-60" style={{ animationDelay: '0s' }}>🎴</div>
+            <div className="absolute top-20 right-20 text-9xl float-animation opacity-60" style={{ animationDelay: '2s' }}>♠️</div>
+            <div className="absolute bottom-20 left-20 text-9xl float-animation opacity-60" style={{ animationDelay: '4s' }}>♥️</div>
+            <div className="absolute bottom-10 right-10 text-9xl float-animation opacity-60" style={{ animationDelay: '1s' }}>♦️</div>
+
+            <div className="glass-card rounded-3xl p-10 max-w-5xl w-full z-10 shadow-2xl">
+                <h1 className="text-9xl font-bold text-center text-white mb-3" style={{ fontSize: '100px', lineHeight: '1.1', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
+                    🎴 Bid Whist
+                </h1>
+                <p className="text-center text-2xl mb-6 font-bold px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+                    Play with your friends and family!
+                </p>
+
                 {/* Error Message */}
                 {error && (
-                    <div className="mb-4 p-3 bg-red-100 border-l-4 border-red-500 text-red-700 rounded">
-                        <p className="text-sm font-medium">⚠️ {error}</p>
+                    <div className="mb-4 p-4 bg-red-500/20 backdrop-blur-sm border-2 border-red-400 text-white rounded-2xl">
+                        <p className="text-xl font-semibold">⚠️ {error}</p>
                     </div>
                 )}
 
                 {/* Success Message */}
                 {successMessage && (
-                    <div className="mb-4 p-3 bg-green-100 border-l-4 border-green-500 text-green-700 rounded">
-                        <p className="text-sm font-medium">{successMessage}</p>
+                    <div className="mb-4 p-4 bg-green-500/20 backdrop-blur-sm border-2 border-green-400 text-white rounded-2xl">
+                        <p className="text-xl font-semibold">{successMessage}</p>
                     </div>
                 )}
 
-                <div className="space-y-4">
+                <div className="space-y-6 flex flex-col items-center">
                     {/* Username Input */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                            👤 Your Name
-                        </label>
+                    <div className="w-full max-w-3xl">
                         <input
                             type="text"
                             value={username}
                             onChange={handleUsernameChange}
-                            placeholder="Enter your name"
+                            placeholder="👤 Enter Your Name"
                             maxLength={20}
-                            className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500"
+                            className="w-full px-6 py-4 text-3xl border-3 border-white/30 rounded-2xl focus:outline-none focus:border-white focus:ring-4 focus:ring-white/40 bg-white/15 backdrop-blur-sm text-white placeholder-white/60 font-semibold text-center"
+                            style={{ height: '65px', fontSize: '28px' }}
                         />
-                        <p className="text-xs text-gray-500 mt-1">
-                            {username.length}/20 characters
-                        </p>
                     </div>
 
-                    <div className="border-t-2 border-gray-200 pt-4">
+                    <div className="border-t-4 border-white/40 pt-6 w-full max-w-3xl">
                         {/* Create Room Section */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                🎮 Create a New Room
-                            </label>
                             <input
                                 type="text"
                                 value={createCode}
                                 onChange={handleCreateCode}
-                                placeholder="Enter room code (4-8 chars)"
+                                placeholder="🎮 CREATE ROOM CODE"
                                 maxLength={8}
-                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 uppercase font-mono text-center tracking-wider"
+                                className="w-full px-6 py-4 text-3xl border-3 border-white/30 rounded-2xl focus:outline-none focus:border-white focus:ring-4 focus:ring-white/40 bg-white/15 backdrop-blur-sm text-white placeholder-white/60 uppercase font-mono text-center tracking-widest font-bold"
+                                style={{ height: '65px', fontSize: '28px', letterSpacing: '0.3em' }}
                             />
-                            <p className="text-xs text-gray-500 mt-1">
-                                {createCode.length}/8 characters
-                            </p>
                             <button
                                 onClick={handleCreateRoom}
                                 disabled={loading || !canCreate}
-                                className="w-full mt-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full mt-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-3xl py-5 px-8 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-500 disabled:to-gray-600 shadow-2xl hover:shadow-green-500/50 hover:scale-105 glow-on-hover"
                             >
                                 {loading ? '🔄 Creating...' : '🚀 Create & Join'}
                             </button>
                         </div>
 
-                        <div className="relative my-4">
+                        <div className="relative my-6">
                             <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t-2 border-gray-300"></div>
+                                <div className="w-full border-t-4 border-white/40"></div>
                             </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-white text-gray-600">or</span>
+                            <div className="relative flex justify-center text-2xl">
+                                <span className="px-4 glass-card text-white font-bold py-1 rounded-xl">or</span>
                             </div>
                         </div>
 
                         {/* Join Room Section */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                🚪 Join an Existing Room
-                            </label>
                             <input
                                 type="text"
                                 value={joinCode}
                                 onChange={handleJoinCode}
                                 onKeyPress={(e) => e.key === 'Enter' && handleJoinRoomClick()}
-                                placeholder="Enter room code"
+                                placeholder="🚪 ENTER ROOM CODE"
                                 maxLength={8}
-                                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 uppercase font-mono text-center tracking-wider"
+                                className="w-full px-6 py-4 text-3xl border-3 border-white/30 rounded-2xl focus:outline-none focus:border-white focus:ring-4 focus:ring-white/40 bg-white/15 backdrop-blur-sm text-white placeholder-white/60 uppercase font-mono text-center tracking-widest font-bold"
+                                style={{ height: '65px', fontSize: '28px', letterSpacing: '0.3em' }}
                             />
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-lg font-bold text-center px-4 py-2 rounded-lg inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9), 2px 2px 4px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
                                 Ask your friend for their room code
                             </p>
                             <button
                                 onClick={handleJoinRoomClick}
                                 disabled={loading || !canJoin}
-                                className="w-full mt-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full mt-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-3xl py-5 px-8 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-500 disabled:to-gray-600 shadow-2xl hover:shadow-green-500/50 hover:scale-105 glow-on-hover"
                             >
                                 {loading ? '🔄 Joining...' : '📍 Join Room'}
                             </button>
@@ -258,8 +256,8 @@ const Home: React.FC = () => {
                     </div>
                 </div>
 
-                <p className="text-center text-sm text-gray-500 mt-6">
-                    🦙 Create a room or ask a friend for their code! 🐱
+                <p className="text-center text-2xl mt-6 font-bold px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+                    🎴 Create a room or ask a friend for their code! ♠️
                 </p>
             </div>
         </div>
