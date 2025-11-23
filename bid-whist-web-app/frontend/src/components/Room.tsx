@@ -182,31 +182,31 @@ const Room: React.FC = () => {
   const selectableBtn = "bg-gray-200 text-gray-700 hover:bg-gray-300";
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden smoky-bar-bg">
+    <div className="min-h-screen flex items-center justify-center p-4 md:p-6 relative overflow-hidden smoky-bar-bg">
       {/* Animated Smoke Wisps */}
       <div className="smoke-wisp" style={{ left: '10%', animationDelay: '0s' }}></div>
       <div className="smoke-wisp" style={{ left: '30%', animationDelay: '5s' }}></div>
       <div className="smoke-wisp" style={{ left: '60%', animationDelay: '10s' }}></div>
       <div className="smoke-wisp" style={{ left: '85%', animationDelay: '15s' }}></div>
 
-      {/* Floating Card Suits */}
-      <div className="absolute top-10 left-10 text-9xl float-animation opacity-60" style={{ animationDelay: '0s' }}>🎴</div>
-      <div className="absolute top-20 right-20 text-9xl float-animation opacity-60" style={{ animationDelay: '2s' }}>♠️</div>
-      <div className="absolute bottom-20 left-20 text-9xl float-animation opacity-60" style={{ animationDelay: '4s' }}>♥️</div>
-      <div className="absolute bottom-10 right-10 text-9xl float-animation opacity-60" style={{ animationDelay: '1s' }}>♦️</div>
+      {/* Floating Card Suits - Hidden on small mobile */}
+      <div className="hidden md:block absolute top-10 left-10 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '0s' }}>🎴</div>
+      <div className="hidden md:block absolute top-20 right-20 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '2s' }}>♠️</div>
+      <div className="hidden md:block absolute bottom-20 left-20 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '4s' }}>♥️</div>
+      <div className="hidden md:block absolute bottom-10 right-10 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '1s' }}>♦️</div>
 
-      <div className="glass-card rounded-3xl p-10 max-w-6xl w-full z-10 shadow-2xl">
+      <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-10 w-full max-w-6xl z-10 shadow-2xl my-auto">
         {/* HEADER */}
-        <header className="flex flex-col items-center border-b-4 border-white/40 pb-6 mb-8">
-          <h1 className="text-9xl font-bold text-center mb-4" style={{ fontSize: '100px', lineHeight: '1.1', color: '#FFFFFF', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
+        <header className="flex flex-col items-center border-b-4 border-white/40 pb-6 mb-6 md:mb-8">
+          <h1 className="text-5xl md:text-8xl lg:text-[100px] font-bold text-center mb-4 leading-tight" style={{ color: '#FFFFFF', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
             🎴 Room {roomCode}
           </h1>
-          <p className="text-center text-2xl mb-6 font-bold px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+          <p className="text-center text-lg md:text-2xl mb-6 font-bold px-4 md:px-6 py-2 md:py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
             Playing as {currentUser?.name}
           </p>
 
-          <div className="flex items-center gap-4">
-            <span className="text-white bg-black/80 px-8 py-4 rounded-2xl font-mono tracking-widest shadow-2xl text-4xl font-bold" style={{ letterSpacing: '0.3em' }}>
+          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+            <span className="text-white bg-black/80 px-6 md:px-8 py-3 md:py-4 rounded-2xl font-mono tracking-widest shadow-2xl text-2xl md:text-4xl font-bold w-full md:w-auto text-center" style={{ letterSpacing: '0.2em' }}>
               {roomCode}
             </span>
             <button
@@ -215,7 +215,7 @@ const Room: React.FC = () => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
-              className="px-6 py-4 text-white rounded-2xl text-2xl font-bold transition shadow-2xl"
+              className="px-6 py-3 md:py-4 text-white rounded-2xl text-xl md:text-2xl font-bold transition shadow-2xl w-full md:w-auto"
               style={{
                 background: 'linear-gradient(to right, #f59e0b, #d97706)',
                 boxShadow: '0 0 20px rgba(245, 158, 11, 0.3)'
@@ -235,21 +235,22 @@ const Room: React.FC = () => {
         </header>
 
         {/* PLAYER SETTINGS */}
-        <section className="space-y-8 mb-8">
+        <section className="space-y-6 md:space-y-8 mb-8">
           {/* HAND COUNT */}
           <div>
-            <h2 className="text-4xl font-bold mb-4 text-center px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+            <h2 className="text-2xl md:text-4xl font-bold mb-4 text-center px-6 py-3 rounded-xl inline-block w-full md:w-auto" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
               Number of Hands
             </h2>
-            <div className="flex gap-4 justify-center mt-4">
+            <div className="flex gap-2 md:gap-4 justify-center mt-4">
               {[1, 2, 3].map((n) => (
                 <button
                   key={n}
                   onClick={() => handleHandCount(n)}
                   disabled={isReady}
-                  className="px-10 py-5 rounded-2xl font-bold transition shadow-2xl text-3xl min-w-[120px]"
+                  className="flex-1 md:flex-none px-4 md:px-10 py-3 md:py-5 rounded-xl md:rounded-2xl font-bold transition shadow-2xl text-xl md:text-3xl min-w-[60px] md:min-w-[120px]"
                   style={{
-                    height: '70px',
+                    height: '60px', // Mobile height
+                    minHeight: '60px',
                     background: handCount === n
                       ? 'linear-gradient(to right, #f59e0b, #d97706)'
                       : 'rgba(255, 255, 255, 0.15)',
@@ -280,22 +281,22 @@ const Room: React.FC = () => {
 
           {/* HAND CONFIGURATION */}
           <div>
-            <h2 className="text-4xl font-bold mb-4 text-center px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+            <h2 className="text-2xl md:text-4xl font-bold mb-4 text-center px-6 py-3 rounded-xl inline-block w-full md:w-auto" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
               Hand Configuration
             </h2>
             <div className="space-y-4 mt-4">
               {Array.from({ length: handCount }, (_, i) => (
-                <div key={i} className="p-6 bg-white/10 backdrop-blur-sm rounded-2xl border-3 border-white/30 shadow-xl">
+                <div key={i} className="p-4 md:p-6 bg-white/10 backdrop-blur-sm rounded-xl md:rounded-2xl border-3 border-white/30 shadow-xl">
                   <div className="flex flex-col gap-4">
                     {/* Hand Name */}
-                    <div className="flex items-center gap-4">
-                      <span className="text-2xl font-bold px-4 py-2 rounded-lg" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                      <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
                         Hand {i + 1}:
                       </span>
                       {i === 0 ? (
-                        <span className="text-3xl font-bold" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>{currentUser?.name}</span>
+                        <span className="text-2xl md:text-3xl font-bold text-center md:text-left" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>{currentUser?.name}</span>
                       ) : (
-                        <div className="flex gap-3">
+                        <div className="flex gap-2 md:gap-3 w-full md:w-auto">
                           {[
                             { value: 'reddy', label: '🐱 Reddy', color: 'from-orange-500 to-red-500' },
                             { value: 'oatmeal', label: '🦙 Oatmeal', color: 'from-amber-500 to-yellow-500' }
@@ -304,9 +305,10 @@ const Room: React.FC = () => {
                               key={char.value}
                               onClick={() => handleCharacter(i, char.value as 'reddy' | 'oatmeal')}
                               disabled={isReady}
-                              className="px-8 py-3 rounded-xl font-bold transition shadow-xl text-2xl"
+                              className="flex-1 md:flex-none px-4 md:px-8 py-2 md:py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-2xl whitespace-nowrap"
                               style={{
-                                height: '60px',
+                                height: '50px', // Mobile height
+                                minHeight: '50px',
                                 background: handCharacters[i] === char.value
                                   ? 'linear-gradient(to right, #f59e0b, #d97706)'
                                   : 'rgba(255, 255, 255, 0.15)',
@@ -337,19 +339,20 @@ const Room: React.FC = () => {
                     </div>
 
                     {/* Team Selection */}
-                    <div className="flex items-center gap-4">
-                      <span className="text-2xl font-bold px-4 py-2 rounded-lg" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                      <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
                         Team:
                       </span>
-                      <div className="flex gap-3">
+                      <div className="flex gap-2 md:gap-3 w-full md:w-auto">
                         {["Us", "Them"].map((t) => (
                           <button
                             key={t}
                             onClick={() => handleTeam(i, t)}
                             disabled={isReady}
-                            className="px-10 py-3 rounded-xl font-bold transition shadow-xl text-2xl min-w-[140px]"
+                            className="flex-1 md:flex-none px-6 md:px-10 py-2 md:py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-2xl min-w-[100px] md:min-w-[140px]"
                             style={{
-                              height: '60px',
+                              height: '50px', // Mobile height
+                              minHeight: '50px',
                               background: handTeams[i] === t
                                 ? 'linear-gradient(to right, #f59e0b, #d97706)'
                                 : 'rgba(255, 255, 255, 0.15)',
@@ -385,11 +388,11 @@ const Room: React.FC = () => {
         </section>
 
         {/* GAME START STATUS */}
-        <section className="bg-black/60 backdrop-blur-sm p-6 rounded-2xl border-3 border-white/30 mb-8">
-          <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>
+        <section className="bg-black/60 backdrop-blur-sm p-4 md:p-6 rounded-xl md:rounded-2xl border-3 border-white/30 mb-8">
+          <h3 className="text-xl md:text-2xl font-bold mb-4 text-center" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>
             Game Start Requirements
           </h3>
-          <div className="space-y-2 text-xl font-bold">
+          <div className="space-y-2 text-lg md:text-xl font-bold">
             {(() => {
               // Calculate total hands using local state for current user, server state for others
               let totalHands = 0;
@@ -428,17 +431,17 @@ const Room: React.FC = () => {
               });
 
               return (
-                <>
-                  <div className={`px-4 py-2 rounded-lg ${allReady ? "bg-green-600/80" : "bg-yellow-600/80"}`} style={{ color: '#FFFFFF' }}>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div className={`px-4 py-2 rounded-lg text-center ${allReady ? "bg-green-600/80" : "bg-yellow-600/80"}`} style={{ color: '#FFFFFF' }}>
                     ✓ All players ready: {allReady ? "Yes" : "No"}
                   </div>
-                  <div className={`px-4 py-2 rounded-lg ${totalHands === 4 ? "bg-green-600/80" : "bg-yellow-600/80"}`} style={{ color: '#FFFFFF' }}>
+                  <div className={`px-4 py-2 rounded-lg text-center ${totalHands === 4 ? "bg-green-600/80" : "bg-yellow-600/80"}`} style={{ color: '#FFFFFF' }}>
                     ✓ Total hands = 4: {totalHands}/4
                   </div>
-                  <div className={`px-4 py-2 rounded-lg ${usHands === 2 && themHands === 2 ? "bg-green-600/80" : "bg-yellow-600/80"}`} style={{ color: '#FFFFFF' }}>
-                    ✓ Teams balanced: Us={usHands}, Them={themHands} (need 2 each)
+                  <div className={`px-4 py-2 rounded-lg text-center ${usHands === 2 && themHands === 2 ? "bg-green-600/80" : "bg-yellow-600/80"}`} style={{ color: '#FFFFFF' }}>
+                    ✓ Teams balanced: Us={usHands}, Them={themHands}
                   </div>
-                </>
+                </div>
               );
             })()}
           </div>
@@ -446,29 +449,29 @@ const Room: React.FC = () => {
 
         {/* PLAYERS */}
         <section className="mb-8">
-          <h2 className="text-4xl font-bold mb-6 text-center px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+          <h2 className="text-2xl md:text-4xl font-bold mb-6 text-center px-6 py-3 rounded-xl inline-block w-full md:w-auto" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
             Players
           </h2>
-          <div className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
             {players.map((p) => (
               <div
                 key={p.id}
-                className="p-6 rounded-2xl border-3 border-white/30 backdrop-blur-sm shadow-2xl bg-white/10"
+                className="p-4 md:p-6 rounded-2xl border-3 border-white/30 backdrop-blur-sm shadow-2xl bg-white/10"
               >
                 <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className={`text-3xl font-bold ${p.isReady ? 'text-green-400' : ''}`} style={{ color: p.isReady ? '#4ade80' : '#FFFFFF', textShadow: p.isReady ? '0 0 20px rgba(74, 222, 128, 0.8), 0 0 10px rgba(74, 222, 128, 0.6)' : '0 0 10px rgba(0,0,0,0.9)' }}>
+                  <div className="flex items-center gap-2 md:gap-3">
+                    <span className={`text-xl md:text-3xl font-bold ${p.isReady ? 'text-green-400' : ''}`} style={{ color: p.isReady ? '#4ade80' : '#FFFFFF', textShadow: p.isReady ? '0 0 20px rgba(74, 222, 128, 0.8), 0 0 10px rgba(74, 222, 128, 0.6)' : '0 0 10px rgba(0,0,0,0.9)' }}>
                       {p.name}
                     </span>
                     {p.id === currentUser?.id && (
-                      <span className="text-xl bg-purple-600 px-4 py-2 rounded-full font-bold" style={{ color: '#FFFFFF' }}>You</span>
+                      <span className="text-sm md:text-xl bg-purple-600 px-3 py-1 md:px-4 md:py-2 rounded-full font-bold" style={{ color: '#FFFFFF' }}>You</span>
                     )}
                     {p.isReady && (
-                      <span className="text-2xl bg-green-500 px-3 py-1 rounded-full font-bold" style={{ color: '#FFFFFF' }}>✓</span>
+                      <span className="text-xl md:text-2xl bg-green-500 px-2 py-1 md:px-3 rounded-full font-bold" style={{ color: '#FFFFFF' }}>✓</span>
                     )}
                   </div>
                   <span
-                    className={`px-6 py-3 rounded-xl text-2xl font-bold shadow-xl
+                    className={`px-4 py-2 md:px-6 md:py-3 rounded-xl text-lg md:text-2xl font-bold shadow-xl whitespace-nowrap
                       ${p.isReady ? "bg-gradient-to-r from-green-500 to-emerald-500" : "bg-gradient-to-r from-gray-500 to-gray-600"}`}
                     style={{ color: '#FFFFFF' }}
                   >
@@ -480,7 +483,7 @@ const Room: React.FC = () => {
                     const team = p.handTeams?.[i] || "Us";
                     const handName = p.handNames?.[i] || (i === 0 ? p.name : "");
                     return (
-                      <div key={i} className="flex items-center gap-3 text-xl font-bold px-4 py-2 rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                      <div key={i} className="flex items-center gap-2 md:gap-3 text-base md:text-xl font-bold px-3 py-2 md:px-4 rounded-lg" style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}>
                         <span style={{ color: '#FFFFFF' }}>Hand {i + 1}:</span>
                         {handName && (
                           <span style={{ color: '#FFFFFF' }}>
@@ -505,9 +508,10 @@ const Room: React.FC = () => {
         {/* READY BUTTON */}
         <button
           onClick={handleReady}
-          className="w-full py-6 rounded-2xl text-4xl font-bold shadow-2xl transition"
+          className="w-full py-4 md:py-6 rounded-2xl text-2xl md:text-4xl font-bold shadow-2xl transition"
           style={{
-            height: '80px',
+            height: '70px', // Mobile height
+            minHeight: '70px',
             background: isReady
               ? 'linear-gradient(to right, #eab308, #ca8a04)'
               : 'linear-gradient(to right, #f59e0b, #d97706)',

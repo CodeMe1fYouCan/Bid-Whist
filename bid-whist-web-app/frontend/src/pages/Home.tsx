@@ -84,11 +84,10 @@ const Home: React.FC = () => {
             }
 
             setSuccessMessage(`✓ Room created! Joining as ${username}...`);
-            setTimeout(() => {
-                // Store user info for the room
-                sessionStorage.setItem(`room_${code}_user`, JSON.stringify(user));
-                history.push(`/room/${code}`);
-            }, 500);
+
+            // Store user info for the room
+            sessionStorage.setItem(`room_${code}_user`, JSON.stringify(user));
+            history.push(`/room/${code}`);
         } catch (err) {
             console.error('Failed to create room:', err);
             setError('Failed to create room. Please try again.');
@@ -118,7 +117,7 @@ const Home: React.FC = () => {
         setLoading(true);
         try {
             // Check if room exists on the server
-            const backendUrl = import.meta.env.VITE_WS_URL?.replace('wss://', 'https://').replace('ws://', 'http://') || 'http://localhost:8080';
+            const backendUrl = (import.meta.env.VITE_WS_URL || 'ws://localhost:8080').replace('wss://', 'https://').replace('ws://', 'http://');
             const response = await fetch(`${backendUrl}/api/room/${code}/exists`);
             const data = await response.json();
 
@@ -134,11 +133,10 @@ const Home: React.FC = () => {
             };
 
             setSuccessMessage(`✓ Joining as ${username}...`);
-            setTimeout(() => {
-                // Store user info for the room
-                sessionStorage.setItem(`room_${code}_user`, JSON.stringify(user));
-                history.push(`/room/${code}`);
-            }, 500);
+
+            // Store user info for the room
+            sessionStorage.setItem(`room_${code}_user`, JSON.stringify(user));
+            history.push(`/room/${code}`);
         } catch (err) {
             console.error('Failed to join room:', err);
             setError('Failed to join room. Please try again.');
@@ -147,209 +145,144 @@ const Home: React.FC = () => {
     };
 
     const isFormValid = username.trim().length > 0;
-    const canCreate = isFormValid && createCode.length >= 4;
-    const canJoin = isFormValid && joinCode.length >= 4;
+    const canCreate = isFormValid && createCode.length >= 4 && !loading;
+    const canJoin = isFormValid && joinCode.length >= 4 && !loading;
 
     return (
-        <div className="smoky-bar-bg min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div className="smoky-bar-bg min-h-screen flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden">
             {/* Animated Smoke Wisps */}
             <div className="smoke-wisp smoke-wisp-1"></div>
             <div className="smoke-wisp smoke-wisp-2"></div>
             <div className="smoke-wisp smoke-wisp-3"></div>
             <div className="smoke-wisp smoke-wisp-4"></div>
 
-            {/* Floating Card Suit Decorations */}
-            <div className="absolute top-10 left-10 text-9xl float-animation opacity-60" style={{ animationDelay: '0s' }}>🎴</div>
-            <div className="absolute top-20 right-20 text-9xl float-animation opacity-60" style={{ animationDelay: '2s' }}>♠️</div>
-            <div className="absolute bottom-20 left-20 text-9xl float-animation opacity-60" style={{ animationDelay: '4s' }}>♥️</div>
-            <div className="absolute bottom-10 right-10 text-9xl float-animation opacity-60" style={{ animationDelay: '1s' }}>♦️</div>
+            {/* Floating Card Suit Decorations - Hidden on small mobile to save space */}
+            <div className="hidden md:block absolute top-10 left-10 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '0s' }}>🎴</div>
+            <div className="hidden md:block absolute top-20 right-20 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '2s' }}>♠️</div>
+            <div className="hidden md:block absolute bottom-20 left-20 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '4s' }}>♥️</div>
+            <div className="hidden md:block absolute bottom-10 right-10 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '1s' }}>♦️</div>
 
-            <div className="glass-card rounded-3xl p-10 max-w-5xl w-full z-10 shadow-2xl">
-                <h1 className="text-9xl font-bold text-center text-white mb-3" style={{ fontSize: '100px', lineHeight: '1.1', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
+            <div className="glass-card rounded-2xl md:rounded-3xl p-6 md:p-10 w-full max-w-lg md:max-w-3xl lg:max-w-5xl z-10 shadow-2xl mx-auto my-auto">
+                <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold text-center text-white mb-3 leading-tight" style={{ textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
                     🎴 Bid Whist
                 </h1>
-                <p className="text-center text-2xl mb-6 font-bold px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
-                    Play with your friends and family!
-                </p>
+                <div className="text-center mb-6 md:mb-8">
+                    <p className="text-lg md:text-2xl font-bold" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)' }}>
+                        Play with your friends and family!
+                    </p>
+                </div>
 
                 {/* Error Message */}
                 {error && (
-                    <div className="mb-4 p-4 bg-red-500/20 backdrop-blur-sm border-2 border-red-400 text-white rounded-2xl">
-                        <p className="text-xl font-semibold">⚠️ {error}</p>
+                    <div className="mb-4 p-3 md:p-4 bg-red-500/20 backdrop-blur-sm border-2 border-red-400 text-white rounded-xl md:rounded-2xl">
+                        <p className="text-lg md:text-xl font-semibold">⚠️ {error}</p>
                     </div>
                 )}
 
                 {/* Success Message */}
                 {successMessage && (
-                    <div className="mb-4 p-4 bg-green-500/20 backdrop-blur-sm border-2 border-green-400 text-white rounded-2xl">
-                        <p className="text-xl font-semibold">{successMessage}</p>
+                    <div className="mb-4 p-3 md:p-4 bg-green-500/20 backdrop-blur-sm border-2 border-green-400 text-white rounded-xl md:rounded-2xl">
+                        <p className="text-lg md:text-xl font-semibold">{successMessage}</p>
                     </div>
                 )}
 
-                <div className="space-y-6 flex flex-col items-center">
+                <div className="space-y-6 md:space-y-8 flex flex-col items-center w-full">
                     {/* Username Input */}
-                    <div className="w-full max-w-3xl">
+                    <div className="w-full max-w-md md:max-w-2xl">
                         <input
                             type="text"
                             value={username}
                             onChange={handleUsernameChange}
                             placeholder="👤 Enter Your Name"
                             maxLength={20}
-                            className="w-full px-6 py-4 text-3xl border-3 rounded-2xl focus:outline-none focus:ring-4 font-semibold text-center"
+                            className="w-full px-4 md:px-6 py-3 md:py-4 text-xl md:text-3xl border-3 rounded-xl md:rounded-2xl focus:outline-none focus:ring-4 font-semibold text-center h-14 md:h-[65px]"
                             style={{
-                                height: '65px',
-                                fontSize: '28px',
                                 backgroundColor: 'rgba(120, 53, 15, 0.3)',
                                 borderColor: 'rgba(217, 119, 6, 0.5)',
                                 color: '#fbbf24',
-                                borderWidth: '3px',
-                                borderStyle: 'solid'
-                            }}
-                            onFocus={(e) => {
-                                e.target.style.borderColor = '#f59e0b';
-                                e.target.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.5), 0 0 40px rgba(245, 158, 11, 0.3)';
-                            }}
-                            onBlur={(e) => {
-                                e.target.style.borderColor = 'rgba(217, 119, 6, 0.5)';
-                                e.target.style.boxShadow = 'none';
+                                textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                             }}
                         />
+                        <div className="mt-2 text-center">
+                            {/* Helper text removed as per user request */}
+                        </div>
                     </div>
 
-                    <div className="border-t-4 border-white/40 pt-6 w-full max-w-3xl">
-                        {/* Create Room Section */}
-                        <div>
+                    {/* Create Room Section */}
+                    <div className="w-full max-w-md md:max-w-2xl bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10">
+                        <div className="mb-2 text-center">
+                            <span className="inline-block px-3 py-1 text-xs md:text-sm font-medium" style={{ color: '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                                Start a new game as host
+                            </span>
+                        </div>
+                        <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                             <input
                                 type="text"
                                 value={createCode}
                                 onChange={handleCreateCode}
-                                placeholder="🎮 CREATE ROOM CODE"
+                                placeholder="🔑 Create Room Code (4-8 chars)"
                                 maxLength={8}
-                                className="w-full px-6 py-4 text-3xl rounded-2xl focus:outline-none uppercase font-mono text-center tracking-widest font-bold"
+                                className="flex-1 px-4 md:px-6 py-3 md:py-4 text-lg md:text-2xl border-3 rounded-xl md:rounded-2xl focus:outline-none focus:ring-4 font-semibold text-center uppercase h-14 md:h-[65px]"
                                 style={{
-                                    height: '65px',
-                                    fontSize: '28px',
-                                    letterSpacing: '0.3em',
                                     backgroundColor: 'rgba(120, 53, 15, 0.3)',
                                     borderColor: 'rgba(217, 119, 6, 0.5)',
                                     color: '#fbbf24',
-                                    borderWidth: '3px',
-                                    borderStyle: 'solid'
-                                }}
-                                onFocus={(e) => {
-                                    e.target.style.borderColor = '#f59e0b';
-                                    e.target.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.5), 0 0 40px rgba(245, 158, 11, 0.3)';
-                                }}
-                                onBlur={(e) => {
-                                    e.target.style.borderColor = 'rgba(217, 119, 6, 0.5)';
-                                    e.target.style.boxShadow = 'none';
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                                 }}
                             />
                             <button
                                 onClick={handleCreateRoom}
-                                disabled={loading || !canCreate}
-                                className="w-full mt-4 font-bold rounded-2xl transition duration-300 shadow-2xl"
+                                disabled={!canCreate}
+                                className={`px-6 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-lg md:text-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg h-14 md:h-[65px] w-full md:w-auto whitespace-nowrap ${canCreate
+                                    ? 'opacity-100 cursor-pointer hover:shadow-amber-500/50'
+                                    : 'opacity-50 cursor-not-allowed grayscale'
+                                    }`}
                                 style={{
-                                    height: '70px',
-                                    fontSize: '30px',
-                                    background: (loading || !canCreate)
-                                        ? 'linear-gradient(to right, #4b5563, #374151)'
-                                        : 'linear-gradient(to right, #f59e0b, #d97706)',
+                                    background: canCreate ? 'linear-gradient(to right, #f59e0b, #d97706)' : 'linear-gradient(to right, #4b5563, #374151)',
                                     color: '#FFFFFF',
-                                    opacity: (loading || !canCreate) ? 0.5 : 1,
-                                    cursor: (loading || !canCreate) ? 'not-allowed' : 'pointer',
-                                    textShadow: '0 0 10px rgba(0,0,0,0.8), 2px 2px 4px rgba(0,0,0,1)',
-                                    boxShadow: (loading || !canCreate)
-                                        ? 'none'
-                                        : '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)'
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!loading && canCreate) {
-                                        e.currentTarget.style.background = 'linear-gradient(to right, #d97706, #b45309)';
-                                        e.currentTarget.style.boxShadow = '0 0 40px rgba(245, 158, 11, 0.6), 0 4px 25px rgba(0,0,0,0.4)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!loading && canCreate) {
-                                        e.currentTarget.style.background = 'linear-gradient(to right, #f59e0b, #d97706)';
-                                        e.currentTarget.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)';
-                                    }
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                                    boxShadow: canCreate ? '0 0 15px rgba(245, 158, 11, 0.4)' : 'none'
                                 }}
                             >
-                                {loading ? '🔄 Creating...' : '🚀 Create & Join'}
+                                {loading && createCode === createCode ? '🔄 Creating...' : '✨ Create Room'}
                             </button>
                         </div>
+                    </div>
 
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t-4 border-white/40"></div>
-                            </div>
-                            <div className="relative flex justify-center text-2xl">
-                                <span className="px-4 glass-card text-white font-bold py-1 rounded-xl">or</span>
-                            </div>
+                    {/* Join Room Section */}
+                    <div className="w-full max-w-md md:max-w-2xl bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10">
+                        <div className="mb-2 text-center">
+                            <span className="inline-block px-3 py-1 text-xs md:text-sm font-medium" style={{ color: '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                                Ask your friend for their room code
+                            </span>
                         </div>
-
-                        {/* Join Room Section */}
-                        <div>
+                        <div className="flex flex-col md:flex-row gap-3 md:gap-4">
                             <input
                                 type="text"
                                 value={joinCode}
                                 onChange={handleJoinCode}
-                                onKeyPress={(e) => e.key === 'Enter' && handleJoinRoomClick()}
-                                placeholder="🚪 ENTER ROOM CODE"
+                                placeholder="🔑 Enter Room Code"
                                 maxLength={8}
-                                className="w-full px-6 py-4 text-3xl rounded-2xl focus:outline-none uppercase font-mono text-center tracking-widest font-bold"
+                                className="flex-1 px-4 md:px-6 py-3 md:py-4 text-lg md:text-2xl border-3 rounded-xl md:rounded-2xl focus:outline-none focus:ring-4 font-semibold text-center uppercase h-14 md:h-[65px]"
                                 style={{
-                                    height: '65px',
-                                    fontSize: '28px',
-                                    letterSpacing: '0.3em',
                                     backgroundColor: 'rgba(120, 53, 15, 0.3)',
                                     borderColor: 'rgba(217, 119, 6, 0.5)',
                                     color: '#fbbf24',
-                                    borderWidth: '3px',
-                                    borderStyle: 'solid'
-                                }}
-                                onFocus={(e) => {
-                                    e.target.style.borderColor = '#f59e0b';
-                                    e.target.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.5), 0 0 40px rgba(245, 158, 11, 0.3)';
-                                }}
-                                onBlur={(e) => {
-                                    e.target.style.borderColor = 'rgba(217, 119, 6, 0.5)';
-                                    e.target.style.boxShadow = 'none';
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                                 }}
                             />
-                            <p className="text-lg font-bold text-center px-4 py-2 rounded-lg inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9), 2px 2px 4px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
-                                Ask your friend for their room code
-                            </p>
                             <button
                                 onClick={handleJoinRoomClick}
                                 disabled={loading || !canJoin}
-                                className="w-full mt-4 font-bold rounded-2xl transition duration-300 shadow-2xl"
+                                className={`px-6 md:px-8 py-3 md:py-4 rounded-xl md:rounded-2xl font-bold text-lg md:text-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-lg h-14 md:h-[65px] w-full md:w-auto whitespace-nowrap ${(!loading && canJoin)
+                                    ? 'opacity-100 cursor-pointer hover:shadow-amber-500/50'
+                                    : 'opacity-50 cursor-not-allowed grayscale'
+                                    }`}
                                 style={{
-                                    height: '70px',
-                                    fontSize: '30px',
-                                    background: (loading || !canJoin)
-                                        ? 'linear-gradient(to right, #4b5563, #374151)'
-                                        : 'linear-gradient(to right, #f59e0b, #d97706)',
+                                    background: (!loading && canJoin) ? 'linear-gradient(to right, #f59e0b, #d97706)' : 'linear-gradient(to right, #4b5563, #374151)',
                                     color: '#FFFFFF',
-                                    opacity: (loading || !canJoin) ? 0.5 : 1,
-                                    cursor: (loading || !canJoin) ? 'not-allowed' : 'pointer',
-                                    textShadow: '0 0 10px rgba(0,0,0,0.8), 2px 2px 4px rgba(0,0,0,1)',
-                                    boxShadow: (loading || !canJoin)
-                                        ? 'none'
-                                        : '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)'
-                                }}
-                                onMouseEnter={(e) => {
-                                    if (!loading && canJoin) {
-                                        e.currentTarget.style.background = 'linear-gradient(to right, #d97706, #b45309)';
-                                        e.currentTarget.style.boxShadow = '0 0 40px rgba(245, 158, 11, 0.6), 0 4px 25px rgba(0,0,0,0.4)';
-                                    }
-                                }}
-                                onMouseLeave={(e) => {
-                                    if (!loading && canJoin) {
-                                        e.currentTarget.style.background = 'linear-gradient(to right, #f59e0b, #d97706)';
-                                        e.currentTarget.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)';
-                                    }
+                                    textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                                    boxShadow: (!loading && canJoin) ? '0 0 15px rgba(245, 158, 11, 0.4)' : 'none'
                                 }}
                             >
                                 {loading ? '🔄 Joining...' : '📍 Join Room'}
@@ -358,7 +291,7 @@ const Home: React.FC = () => {
                     </div>
                 </div>
 
-                <p className="text-center text-2xl mt-6 font-bold px-6 py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
+                <p className="text-center text-2xl mt-6 font-bold" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)' }}>
                     🎴 Create a room or ask a friend for their code! ♠️
                 </p>
             </div>
