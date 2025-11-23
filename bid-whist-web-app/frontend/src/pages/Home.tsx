@@ -163,12 +163,16 @@ const Home: React.FC = () => {
             <div className="hidden md:block absolute bottom-10 right-10 text-7xl md:text-9xl float-animation opacity-60" style={{ animationDelay: '1s' }}>♦️</div>
 
             <div className="glass-card rounded-2xl md:rounded-3xl p-6 md:p-10 w-full max-w-lg md:max-w-3xl lg:max-w-5xl z-10 shadow-2xl mx-auto my-auto">
-                <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold text-center text-white mb-3 leading-tight" style={{ textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
-                    🎴 Bid Whist
+                <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold text-center mb-3 leading-tight" style={{ color: '#fbbf24', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
+                    <span className="inline-block align-middle w-[3em] h-[3em]">
+                        <img src="../../public/cards/back.svg" alt="Bid Whist Logo" className="w-full h-full" />
+                    </span> Bid Whist <span className="inline-block align-middle w-[3em] h-[3em]">
+                        <img src="../../public/cards/no_trump.svg" alt="No Trump Logo" className="w-full h-full" />
+                    </span>
                 </h1>
                 <div className="text-center mb-6 md:mb-8">
-                    <p className="text-lg md:text-2xl font-bold" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)' }}>
-                        Play with your friends and family!
+                    <p className="text-xl md:text-2xl font-bold mb-8" style={{ color: '#fbbf24', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                        🐱 Play with your friends and family! 🦙
                     </p>
                 </div>
 
@@ -199,7 +203,7 @@ const Home: React.FC = () => {
                             style={{
                                 backgroundColor: 'rgba(120, 53, 15, 0.3)',
                                 borderColor: 'rgba(217, 119, 6, 0.5)',
-                                color: '#fbbf24',
+                                color: '#FFFFFF',
                                 textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                             }}
                         />
@@ -211,7 +215,7 @@ const Home: React.FC = () => {
                     {/* Create Room Section */}
                     <div className="w-full max-w-md md:max-w-2xl bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10">
                         <div className="mb-2 text-center">
-                            <span className="inline-block px-3 py-1 text-xs md:text-sm font-medium" style={{ color: '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                            <span className="inline-block px-3 py-1 text-xs md:text-sm font-medium" style={{ color: '#fbbf24', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                                 Start a new game as host
                             </span>
                         </div>
@@ -226,7 +230,7 @@ const Home: React.FC = () => {
                                 style={{
                                     backgroundColor: 'rgba(120, 53, 15, 0.3)',
                                     borderColor: 'rgba(217, 119, 6, 0.5)',
-                                    color: '#fbbf24',
+                                    color: '#FFFFFF',
                                     textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                                 }}
                             />
@@ -252,7 +256,7 @@ const Home: React.FC = () => {
                     {/* Join Room Section */}
                     <div className="w-full max-w-md md:max-w-2xl bg-white/5 p-4 md:p-6 rounded-xl md:rounded-2xl border border-white/10">
                         <div className="mb-2 text-center">
-                            <span className="inline-block px-3 py-1 text-xs md:text-sm font-medium" style={{ color: '#FFFFFF', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                            <span className="inline-block px-3 py-1 text-xs md:text-sm font-medium" style={{ color: '#fbbf24', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                                 Ask your friend for their room code
                             </span>
                         </div>
@@ -267,7 +271,7 @@ const Home: React.FC = () => {
                                 style={{
                                     backgroundColor: 'rgba(120, 53, 15, 0.3)',
                                     borderColor: 'rgba(217, 119, 6, 0.5)',
-                                    color: '#fbbf24',
+                                    color: '#FFFFFF',
                                     textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                                 }}
                             />
@@ -291,7 +295,7 @@ const Home: React.FC = () => {
                     </div>
                 </div>
 
-                <p className="text-center text-2xl mt-6 font-bold" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)' }}>
+                <p className="text-center text-2xl mt-6 font-bold" style={{ color: '#fbbf24', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)' }}>
                     🎴 Create a room or ask a friend for their code! ♠️
                 </p>
             </div>

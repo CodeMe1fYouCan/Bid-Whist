@@ -6,8 +6,15 @@ import DealerSelection from "../components/DealerSelection";
 import BiddingPhase from "../components/BiddingPhase";
 import TrumpSelection from "../components/TrumpSelection";
 import GameBoard from "../components/GameBoard";
+import DealingAnimation from "../components/DealingAnimation";
+
+// ... (imports remain the same)
+
+// ... (inside Game component)
+
+// Render phase-specific overlay
+import { playMeowSound, playGetAttentionSound } from "../utils/soundEffects";
 import { getWebSocketUrl } from "../config";
-import { playMeowSound } from "../utils/soundEffects";
 
 const Game = () => {
   const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
@@ -40,6 +47,11 @@ const Game = () => {
   const [readyPlayers, setReadyPlayers] = useState<string[]>([]);
   const [totalPoints, setTotalPoints] = useState<Record<string, number>>({ Us: 0, Them: 0 });
   const [teamScores, setTeamScores] = useState<Record<string, number>>({ Us: 0, Them: 0 });
+  const [portraitWarningDismissed, setPortraitWarningDismissed] = useState(false);
+
+  // Derived state
+  const myPlayerIndex = players.findIndex(p => p.id === currentUserId);
+  const isReady = players[myPlayerIndex]?.isReady || false;
 
   const joinedRef = useRef(false);
   const currentTrickRef = useRef<any[]>([]);
@@ -90,6 +102,52 @@ const Game = () => {
       joinedRef.current = true;
     }
   }, [isConnected, currentUserId, roomCode, sendMessage]);
+
+  // Inactivity Timer Logic
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+
+    const isMyTurn =
+      (phase === "BIDDING" && currentBidderIndex === myPlayerIndex) ||
+      (phase === "PLAYING" && currentPlayerIndex === myPlayerIndex) ||
+      (phase === "HAND_COMPLETE" && !isReady);
+
+    if (isMyTurn) {
+      console.log("⏳ Starting 20s inactivity timer...");
+      timer = setTimeout(() => {
+        console.log("⏰ Inactivity timeout! Playing attention sound.");
+        playGetAttentionSound();
+      }, 20000);
+    }
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+        // console.log("⏳ Timer cleared");
+      }
+    };
+  }, [phase, currentBidderIndex, currentPlayerIndex, myPlayerIndex, isReady]);
+
+  /* Auto-dismiss portrait warning if landscape is detected */
+  useEffect(() => {
+    const checkOrientation = () => {
+      // If we detect landscape via JS, auto-dismiss the warning
+      if (window.innerWidth > window.innerHeight) {
+        setPortraitWarningDismissed(true);
+      }
+    };
+
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', checkOrientation);
+
+    // Check immediately
+    checkOrientation();
+
+    return () => {
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
+    };
+  }, []);
 
   /* WS Message Handler */
   useEffect(() => {
@@ -148,8 +206,11 @@ const Game = () => {
     if (data.type === "CARD_PLAYED") {
       console.log("📥 CARD_PLAYED received:", data);
 
-      // Play meow sound if this was a trump cut
-      if (data.isTrumpCut) {
+      // Play sound effects
+      if (data.isOverTrump) {
+        console.log("🐱⬆️ Over-trump detected! Playing high-pitch meow");
+        playOverTrumpSound();
+      } else if (data.isTrumpCut) {
         console.log("🐱 Trump cut detected! Playing meow sound");
         playMeowSound();
       }
@@ -158,36 +219,29 @@ const Game = () => {
         console.log("   Setting currentTrick to:", data.playedCards);
         setCurrentTrick(data.playedCards);
         currentTrickRef.current = data.playedCards; // Keep ref in sync
-      } else {
-        console.log("   ⚠️ No playedCards in message!");
+
+        // After animation, clear the trick and save to last trick
+        // We use a timeout to allow the user to see the played card before clearing
+        // But we need to be careful not to clear if new cards come in
+        const completedTrick = data.playedCards;
+        setTimeout(() => {
+          // Only clear if these are still the current cards (simple check)
+          // In a real app we might want more robust ID checking
+          if (currentTrickRef.current === completedTrick) {
+            console.log("   Setting lastTrick to:", completedTrick);
+            setLastTrick(completedTrick);
+            setLastTrickWinner(data.winnerHandId);
+            setCurrentTrick([]);
+            currentTrickRef.current = []; // Clear ref too
+            setTrickWinnerHandId(null);
+            setShowTrickComplete(false);
+          }
+        }, 1500);
       }
-    }
 
-    if (data.type === "TRICK_COMPLETE") {
-      console.log("🏆 TRICK_COMPLETE received:", data);
-
-      // Use the completed trick from server (more reliable than ref)
-      const completedTrick = data.completedTrick || currentTrickRef.current || [];
-      console.log("   Completed trick:", completedTrick);
-
-      // Show all 4 cards with winner highlighted
-      setTrickWinnerHandId(data.winnerHandId);
-      setShowTrickComplete(true);
-
-      // After animation, clear the trick and save to last trick
-      setTimeout(() => {
-        console.log("   Setting lastTrick to:", completedTrick);
-        setLastTrick(completedTrick);
-        setLastTrickWinner(data.winnerHandId);
-        setCurrentTrick([]);
-        currentTrickRef.current = []; // Clear ref too
-        setTrickWinnerHandId(null);
-        setShowTrickComplete(false);
-      }, 1500);
-    }
-
-    if (data.type === "PLAY_ERROR") {
-      alert(data.message || "Invalid play!");
+      if (data.type === "PLAY_ERROR") {
+        alert(data.message || "Invalid play!");
+      }
     }
 
     if (data.type === "HAND_COMPLETE") {
@@ -310,7 +364,7 @@ const Game = () => {
         />
       );
     } else if (phase === "DEALING") {
-      content = <div className="text-2xl text-white">Dealing Cards…</div>;
+      content = <DealingAnimation />;
     } else {
       content = <div className="text-2xl text-white">{phase}</div>;
     }
@@ -321,7 +375,8 @@ const Game = () => {
           className="bg-black text-white p-8 rounded-3xl shadow-2xl max-w-4xl max-h-[90vh] overflow-y-auto"
           style={{
             pointerEvents: 'auto',
-            backgroundColor: 'rgba(0, 0, 0, 0.95)'
+            backgroundColor: phase === "DEALING" ? 'transparent' : 'rgba(0, 0, 0, 0.95)', // Transparent bg for animation
+            boxShadow: phase === "DEALING" ? 'none' : undefined // No shadow for animation container
           }}
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -336,11 +391,19 @@ const Game = () => {
   return (
     <>
       {/* Portrait Orientation Warning for Mobile */}
-      <div id="portrait-warning" style={{ display: 'none' }}>
-        <div className="rotate-icon">📱 ↻</div>
-        <h2>Please Rotate Your Device</h2>
-        <p>For the best card game experience, please rotate your device to landscape mode.</p>
-      </div>
+      {!portraitWarningDismissed && (
+        <div id="portrait-warning" style={{ display: 'none' }}>
+          <div className="rotate-icon">📱 ↻</div>
+          <h2>Please Rotate Your Device</h2>
+          <p>For the best card game experience, please rotate your device to landscape mode.</p>
+          <button
+            onClick={() => setPortraitWarningDismissed(true)}
+            className="mt-4 px-6 py-2 bg-white/20 hover:bg-white/30 rounded-full text-sm font-semibold border border-white/40 transition-colors"
+          >
+            I'm already in landscape
+          </button>
+        </div>
+      )}
 
       <GameBoard
         handAssignments={handAssignments}

@@ -197,39 +197,26 @@ const Room: React.FC = () => {
 
       <div className="glass-card rounded-2xl md:rounded-3xl p-4 md:p-10 w-full max-w-6xl z-10 shadow-2xl my-auto">
         {/* HEADER */}
+        {/* HEADER */}
         <header className="flex flex-col items-center border-b-4 border-white/40 pb-6 mb-6 md:mb-8">
-          <h1 className="text-5xl md:text-8xl lg:text-[100px] font-bold text-center mb-4 leading-tight" style={{ color: '#FFFFFF', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
-            🎴 Room {roomCode}
-          </h1>
-          <p className="text-center text-lg md:text-2xl mb-6 font-bold px-4 md:px-6 py-2 md:py-3 rounded-xl inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 15px rgba(0,0,0,0.9), 2px 2px 6px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
-            Playing as {currentUser?.name}
-          </p>
-
-          <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-            <span className="text-white bg-black/80 px-6 md:px-8 py-3 md:py-4 rounded-2xl font-mono tracking-widest shadow-2xl text-2xl md:text-4xl font-bold w-full md:w-auto text-center" style={{ letterSpacing: '0.2em' }}>
-              {roomCode}
-            </span>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-6">
+            <h1 className="text-5xl md:text-7xl lg:text-[80px] font-bold text-center leading-tight" style={{ color: '#FFFFFF', textShadow: '0 0 20px rgba(0,0,0,0.9), 0 0 40px rgba(0,0,0,0.7), 4px 4px 8px rgba(0,0,0,1)' }}>
+              🎴 Room {roomCode}
+            </h1>
             <button
               onClick={() => {
                 navigator.clipboard.writeText(roomCode);
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1500);
               }}
-              className="px-6 py-3 md:py-4 text-white rounded-2xl text-xl md:text-2xl font-bold transition shadow-2xl w-full md:w-auto"
+              className="px-4 py-2 text-white rounded-xl text-lg font-bold transition shadow-xl hover:scale-105 active:scale-95"
               style={{
                 background: 'linear-gradient(to right, #f59e0b, #d97706)',
-                boxShadow: '0 0 20px rgba(245, 158, 11, 0.3)'
+                boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)'
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(to right, #d97706, #b45309)';
-                e.currentTarget.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'linear-gradient(to right, #f59e0b, #d97706)';
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.3)';
-              }}
+              title="Copy Room Code"
             >
-              {copied ? "✓ Copied" : "Copy Code"}
+              {copied ? "✓ Copied" : "📋 Copy"}
             </button>
           </div>
         </header>
@@ -287,100 +274,121 @@ const Room: React.FC = () => {
             <div className="space-y-4 mt-4">
               {Array.from({ length: handCount }, (_, i) => (
                 <div key={i} className="p-4 md:p-6 bg-white/10 backdrop-blur-sm rounded-xl md:rounded-2xl border-3 border-white/30 shadow-xl">
-                  <div className="flex flex-col gap-4">
-                    {/* Hand Name */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                      <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
-                        Hand {i + 1}:
-                      </span>
-                      {i === 0 ? (
+                  {i === 0 ? (
+                    /* HAND 1: EXISTING LAYOUT */
+                    <div className="flex flex-col gap-4">
+                      {/* Hand Name */}
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                        <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
+                          Hand {i + 1}:
+                        </span>
                         <span className="text-2xl md:text-3xl font-bold text-center md:text-left" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>{currentUser?.name}</span>
-                      ) : (
+                      </div>
+
+                      {/* Team Selection */}
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                        <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
+                          Team:
+                        </span>
                         <div className="flex gap-2 md:gap-3 w-full md:w-auto">
-                          {[
-                            { value: 'reddy', label: '🐱 Reddy', color: 'from-orange-500 to-red-500' },
-                            { value: 'oatmeal', label: '🦙 Oatmeal', color: 'from-amber-500 to-yellow-500' }
-                          ].map((char) => (
+                          {["Us", "Them"].map((t) => (
                             <button
-                              key={char.value}
-                              onClick={() => handleCharacter(i, char.value as 'reddy' | 'oatmeal')}
+                              key={t}
+                              onClick={() => handleTeam(i, t)}
                               disabled={isReady}
-                              className="flex-1 md:flex-none px-4 md:px-8 py-2 md:py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-2xl whitespace-nowrap"
+                              className="flex-1 md:flex-none px-6 md:px-10 py-2 md:py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-2xl min-w-[100px] md:min-w-[140px]"
                               style={{
                                 height: '50px', // Mobile height
                                 minHeight: '50px',
-                                background: handCharacters[i] === char.value
+                                background: handTeams[i] === t
                                   ? 'linear-gradient(to right, #f59e0b, #d97706)'
                                   : 'rgba(255, 255, 255, 0.15)',
                                 color: '#FFFFFF',
                                 opacity: isReady ? 0.4 : 1,
                                 cursor: isReady ? 'not-allowed' : 'pointer',
-                                boxShadow: handCharacters[i] === char.value ? '0 0 30px rgba(245, 158, 11, 0.5)' : 'none',
-                                border: handCharacters[i] === char.value ? 'none' : '2px solid rgba(255, 255, 255, 0.3)'
+                                boxShadow: handTeams[i] === t ? '0 0 30px rgba(245, 158, 11, 0.5)' : 'none',
+                                border: handTeams[i] === t ? 'none' : '2px solid rgba(255, 255, 255, 0.3)'
                               }}
                               onMouseEnter={(e) => {
-                                if (!isReady && handCharacters[i] !== char.value) {
+                                if (!isReady && handTeams[i] !== t) {
                                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                                   e.currentTarget.style.transform = 'scale(1.05)';
                                 }
                               }}
                               onMouseLeave={(e) => {
-                                if (!isReady && handCharacters[i] !== char.value) {
+                                if (!isReady && handTeams[i] !== t) {
                                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                                   e.currentTarget.style.transform = 'scale(1)';
                                 }
                               }}
                             >
-                              {char.label}
+                              {t}
                             </button>
                           ))}
                         </div>
-                      )}
+                      </div>
                     </div>
+                  ) : (
+                    /* HAND 2 & 3: NEW 2-COLUMN LAYOUT */
+                    <div className="flex flex-col gap-4">
+                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                        <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
+                          Hand {i + 1}:
+                        </span>
+                        <span className="text-lg md:text-xl font-bold text-white/80 italic">Select Character & Team</span>
+                      </div>
 
-                    {/* Team Selection */}
-                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                      <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
-                        Team:
-                      </span>
-                      <div className="flex gap-2 md:gap-3 w-full md:w-auto">
-                        {["Us", "Them"].map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => handleTeam(i, t)}
-                            disabled={isReady}
-                            className="flex-1 md:flex-none px-6 md:px-10 py-2 md:py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-2xl min-w-[100px] md:min-w-[140px]"
-                            style={{
-                              height: '50px', // Mobile height
-                              minHeight: '50px',
-                              background: handTeams[i] === t
-                                ? 'linear-gradient(to right, #f59e0b, #d97706)'
-                                : 'rgba(255, 255, 255, 0.15)',
-                              color: '#FFFFFF',
-                              opacity: isReady ? 0.4 : 1,
-                              cursor: isReady ? 'not-allowed' : 'pointer',
-                              boxShadow: handTeams[i] === t ? '0 0 30px rgba(245, 158, 11, 0.5)' : 'none',
-                              border: handTeams[i] === t ? 'none' : '2px solid rgba(255, 255, 255, 0.3)'
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isReady && handTeams[i] !== t) {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
-                                e.currentTarget.style.transform = 'scale(1.05)';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (!isReady && handTeams[i] !== t) {
-                                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-                                e.currentTarget.style.transform = 'scale(1)';
-                              }
-                            }}
-                          >
-                            {t}
-                          </button>
+                      <div className="grid grid-cols-2 gap-4 md:gap-8">
+                        {["Us", "Them"].map((team) => (
+                          <div key={team} className="flex flex-col gap-3">
+                            <h3 className="text-center text-2xl font-bold text-white bg-black/40 rounded-lg py-1">{team}</h3>
+                            {[
+                              { value: 'reddy', label: '🐱 Reddy' },
+                              { value: 'oatmeal', label: '🦙 Oatmeal' }
+                            ].map((char) => {
+                              const isActive = handTeams[i] === team && handCharacters[i] === char.value;
+                              return (
+                                <button
+                                  key={char.value}
+                                  onClick={() => {
+                                    handleTeam(i, team);
+                                    handleCharacter(i, char.value as 'reddy' | 'oatmeal');
+                                  }}
+                                  disabled={isReady}
+                                  className="px-4 py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-xl"
+                                  style={{
+                                    height: '60px',
+                                    background: isActive
+                                      ? 'linear-gradient(to right, #f59e0b, #d97706)'
+                                      : 'rgba(255, 255, 255, 0.15)',
+                                    color: '#FFFFFF',
+                                    opacity: isReady ? 0.4 : 1,
+                                    cursor: isReady ? 'not-allowed' : 'pointer',
+                                    boxShadow: isActive ? '0 0 30px rgba(245, 158, 11, 0.5)' : 'none',
+                                    border: isActive ? 'none' : '2px solid rgba(255, 255, 255, 0.3)'
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (!isReady && !isActive) {
+                                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                                      e.currentTarget.style.transform = 'scale(1.05)';
+                                    }
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    if (!isReady && !isActive) {
+                                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                                      e.currentTarget.style.transform = 'scale(1)';
+                                    }
+                                  }}
+                                >
+                                  {char.label}
+                                </button>
+                              );
+                            })}
+                          </div>
                         ))}
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

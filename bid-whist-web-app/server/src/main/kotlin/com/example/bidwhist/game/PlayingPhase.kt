@@ -6,58 +6,64 @@ import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.send
 import kotlinx.coroutines.delay
 
-suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, String>, objectMapper: ObjectMapper) {
+suspend fun handleCardPlay(
+        room: RoomState,
+        handId: String,
+        card: Map<String, String>,
+        objectMapper: ObjectMapper
+) {
     println("🃏 handleCardPlay: handId=$handId, card=$card")
     val gameState = room.gameState ?: return
     val handAssignments = gameState["handAssignments"] as? List<Map<String, String>> ?: return
     val currentPlayerIndex = gameState["currentPlayerIndex"] as? Int ?: return
     val currentTrick = gameState["currentTrick"] as? MutableMap<String, Any> ?: return
     val playedCards = currentTrick["playedCards"] as? MutableList<Map<String, Any>> ?: return
-    val playerHands = gameState["playerHands"] as? MutableMap<String, List<Map<String, String>>> ?: return
-    
-    val playerIndex = handAssignments.indexOfFirst { 
-        "${it["playerId"]}_hand_${it["handIndex"]}" == handId 
-    }
-    
+    val playerHands =
+            gameState["playerHands"] as? MutableMap<String, List<Map<String, String>>> ?: return
+
+    val playerIndex =
+            handAssignments.indexOfFirst { "${it["playerId"]}_hand_${it["handIndex"]}" == handId }
+
     if (playerIndex != currentPlayerIndex) {
         println("❌ Not this player's turn!")
         return
     }
-    
+
     val currentHand = playerHands[handId]?.toMutableList() ?: mutableListOf()
-    
+
     // Verify the card exists in the player's hand
     val cardExists = currentHand.any { it["suit"] == card["suit"] && it["rank"] == card["rank"] }
     if (!cardExists) {
         println("❌ Card not in hand! handId=$handId, card=$card")
         println("   Current hand: $currentHand")
-        val errorMessage = objectMapper.writeValueAsString(
-            mapOf(
-                "type" to "PLAY_ERROR",
-                "message" to "You don't have that card!"
-            )
-        )
+        val errorMessage =
+                objectMapper.writeValueAsString(
+                        mapOf("type" to "PLAY_ERROR", "message" to "You don't have that card!")
+                )
         room.connections[handAssignments[playerIndex]["playerId"]]?.send(Frame.Text(errorMessage))
         return
     }
-    
+
     val leadSuit = currentTrick["leadSuit"] as? String
     if (leadSuit != null && playedCards.isNotEmpty()) {
         val hasLeadSuit = currentHand.any { it["suit"] == leadSuit }
         val playedCardSuit = card["suit"]
-        
+
         if (hasLeadSuit && playedCardSuit != leadSuit) {
-            val errorMessage = objectMapper.writeValueAsString(
-                mapOf(
-                    "type" to "PLAY_ERROR",
-                    "message" to "You must follow suit! Lead suit is $leadSuit"
-                )
+            val errorMessage =
+                    objectMapper.writeValueAsString(
+                            mapOf(
+                                    "type" to "PLAY_ERROR",
+                                    "message" to "You must follow suit! Lead suit is $leadSuit"
+                            )
+                    )
+            room.connections[handAssignments[playerIndex]["playerId"]]?.send(
+                    Frame.Text(errorMessage)
             )
-            room.connections[handAssignments[playerIndex]["playerId"]]?.send(Frame.Text(errorMessage))
             return
         }
     }
-    
+
     // Remove the card from the hand
     val removed = currentHand.removeIf { it["suit"] == card["suit"] && it["rank"] == card["rank"] }
     if (!removed) {
@@ -65,36 +71,70 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
     }
     playerHands[handId] = currentHand
     println("✓ Card removed. Hand now has ${currentHand.size} cards")
-    
+
     // Check if this is a trump cut (playing trump on a different suit)
     val trumpSuit = gameState["trumpSuit"] as? String
-    val isTrumpCut = leadSuit != null && 
-                     leadSuit != trumpSuit && 
-                     card["suit"] == trumpSuit && 
-                     playedCards.isNotEmpty()
-    
-    playedCards.add(mapOf(
-        "handId" to handId,
-        "handIndex" to playerIndex,
-        "card" to card,
-        "isTrumpCut" to isTrumpCut
-    ))
-    
+    val isTrumpCut =
+            leadSuit != null &&
+                    leadSuit != trumpSuit &&
+                    card["suit"] == trumpSuit &&
+                    playedCards.isNotEmpty()
+
+    var isOverTrump = false
+    if (isTrumpCut) {
+        // Check if anyone else already trumped
+        val previousTrumps =
+                playedCards.filter {
+                    val c = it["card"] as Map<String, String>
+                    c["suit"] == trumpSuit
+                }
+
+        if (previousTrumps.isNotEmpty()) {
+            // Find highest rank
+            val highestTrump =
+                    previousTrumps.maxWithOrNull { a, b ->
+                        val cardA = a["card"] as Map<String, String>
+                        val cardB = b["card"] as Map<String, String>
+                        compareRanks(cardA["rank"]!!, cardB["rank"]!!)
+                    }
+
+            if (highestTrump != null) {
+                val highestRank = (highestTrump["card"] as Map<String, String>)["rank"]!!
+                if (compareRanks(card["rank"]!!, highestRank) > 0) {
+                    isOverTrump = true
+                }
+            }
+        }
+    }
+
+    playedCards.add(
+            mapOf(
+                    "handId" to handId,
+                    "handIndex" to playerIndex,
+                    "card" to card,
+                    "isTrumpCut" to isTrumpCut,
+                    "isOverTrump" to isOverTrump
+            )
+    )
+
     if (playedCards.size == 1) {
         currentTrick["leadSuit"] = card["suit"] ?: ""
     }
-    
+
     if (playedCards.size == 4) {
-        val cardPlayedMessage = objectMapper.writeValueAsString(
-            mapOf(
-                "type" to "CARD_PLAYED",
-                "handId" to handId,
-                "card" to card,
-                "currentPlayerIndex" to currentPlayerIndex,
-                "playedCards" to playedCards,
-                "playerHands" to playerHands
-            )
-        )
+        val cardPlayedMessage =
+                objectMapper.writeValueAsString(
+                        mapOf(
+                                "type" to "CARD_PLAYED",
+                                "handId" to handId,
+                                "card" to card,
+                                "currentPlayerIndex" to currentPlayerIndex,
+                                "playedCards" to playedCards,
+                                "playerHands" to playerHands,
+                                "isTrumpCut" to isTrumpCut,
+                                "isOverTrump" to isOverTrump
+                        )
+                )
         room.connections.values.forEach { session ->
             try {
                 session.send(Frame.Text(cardPlayedMessage))
@@ -102,48 +142,75 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
                 println("Error sending card played: ${e.message}")
             }
         }
-        
+
         delay(500)
-        
+
         val trumpSuit = gameState["trumpSuit"] as? String
         val winnerIndex = determineTrickWinner(playedCards, trumpSuit, leadSuit)
-        
+
         val winnerHandId = playedCards[winnerIndex]["handId"] as String
-        val winnerAssignment = handAssignments.find { 
-            "${it["playerId"]}_hand_${it["handIndex"]}" == winnerHandId 
-        }
+        val winnerAssignment =
+                handAssignments.find { "${it["playerId"]}_hand_${it["handIndex"]}" == winnerHandId }
         val winnerTeam = winnerAssignment?.get("team") as? String ?: "Us"
-        
+
         val tricksWon = gameState["tricksWon"] as? MutableMap<String, Int> ?: mutableMapOf()
         tricksWon[winnerTeam] = (tricksWon[winnerTeam] ?: 0) + 1
-        
+
         val handTricksWon = gameState["handTricksWon"] as? MutableMap<String, Int> ?: mutableMapOf()
         handTricksWon[winnerHandId] = (handTricksWon[winnerHandId] ?: 0) + 1
         gameState["handTricksWon"] = handTricksWon
-        
+
         val trickNumber = gameState["trickNumber"] as? Int ?: 1
         val completedTrick = playedCards.toList()
-        
+
+        // Check if bid is met or set
+        var isBidMet = false
+        val winningBid = gameState["winningBid"] as? Int ?: 0
+        val bidWinnerIndex = gameState["bidWinnerIndex"] as? Int ?: 0
+
+        // Find bidding team
+        val bidderAssignment = handAssignments.find { (it["handIndex"] as? Int) == bidWinnerIndex }
+        val biddingTeam = bidderAssignment?.get("team") as? String ?: "Us"
+
+        val tricksNeeded = 6 + winningBid
+        val currentTeamTricks = tricksWon[winnerTeam] ?: 0
+
+        if (winnerTeam == biddingTeam) {
+            // Bidding team met their bid
+            if (currentTeamTricks == tricksNeeded) {
+                isBidMet = true
+            }
+        } else {
+            // Defending team set the bid (13 - needed + 1)
+            // e.g. Need 4 (10 tricks). Defenders need 4 tricks to set (13-10+1 = 4).
+            if (currentTeamTricks == (14 - tricksNeeded)) {
+                isBidMet = true
+            }
+        }
+
         if (trickNumber == 13) {
             scoreHand(room, objectMapper)
         } else {
             gameState["trickNumber"] = trickNumber + 1
             gameState["currentPlayerIndex"] = playedCards[winnerIndex]["handIndex"] as Int
-            gameState["currentTrick"] = mutableMapOf<String, Any?>(
-                "leadSuit" to null,
-                "playedCards" to mutableListOf<Map<String, Any>>()
-            )
-            
-            val nextTrickMessage = objectMapper.writeValueAsString(
-                mapOf(
-                    "type" to "TRICK_COMPLETE",
-                    "winnerHandId" to winnerHandId,
-                    "tricksWon" to tricksWon,
-                    "trickNumber" to (trickNumber + 1),
-                    "currentPlayerIndex" to playedCards[winnerIndex]["handIndex"],
-                    "completedTrick" to completedTrick
-                )
-            )
+            gameState["currentTrick"] =
+                    mutableMapOf<String, Any?>(
+                            "leadSuit" to null,
+                            "playedCards" to mutableListOf<Map<String, Any>>()
+                    )
+
+            val nextTrickMessage =
+                    objectMapper.writeValueAsString(
+                            mapOf(
+                                    "type" to "TRICK_COMPLETE",
+                                    "winnerHandId" to winnerHandId,
+                                    "tricksWon" to tricksWon,
+                                    "trickNumber" to (trickNumber + 1),
+                                    "currentPlayerIndex" to playedCards[winnerIndex]["handIndex"],
+                                    "completedTrick" to completedTrick,
+                                    "isBidMet" to isBidMet
+                            )
+                    )
             room.connections.values.forEach { session ->
                 try {
                     session.send(Frame.Text(nextTrickMessage))
@@ -155,18 +222,20 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
     } else {
         val nextPlayerIndex = (currentPlayerIndex + 1) % 4
         gameState["currentPlayerIndex"] = nextPlayerIndex
-        
-        val cardPlayedMessage = objectMapper.writeValueAsString(
-            mapOf(
-                "type" to "CARD_PLAYED",
-                "handId" to handId,
-                "card" to card,
-                "currentPlayerIndex" to nextPlayerIndex,
-                "playedCards" to playedCards,
-                "playerHands" to playerHands,
-                "isTrumpCut" to isTrumpCut
-            )
-        )
+
+        val cardPlayedMessage =
+                objectMapper.writeValueAsString(
+                        mapOf(
+                                "type" to "CARD_PLAYED",
+                                "handId" to handId,
+                                "card" to card,
+                                "currentPlayerIndex" to nextPlayerIndex,
+                                "playedCards" to playedCards,
+                                "playerHands" to playerHands,
+                                "isTrumpCut" to isTrumpCut,
+                                "isOverTrump" to isOverTrump
+                        )
+                )
         room.connections.values.forEach { session ->
             try {
                 session.send(Frame.Text(cardPlayedMessage))
@@ -177,13 +246,17 @@ suspend fun handleCardPlay(room: RoomState, handId: String, card: Map<String, St
     }
 }
 
-fun determineTrickWinner(playedCards: List<Map<String, Any>>, trumpSuit: String?, leadSuit: String?): Int {
+fun determineTrickWinner(
+        playedCards: List<Map<String, Any>>,
+        trumpSuit: String?,
+        leadSuit: String?
+): Int {
     var winnerIndex = 0
     var winningCard = (playedCards[0]["card"] as Map<String, String>)
-    
+
     for (i in 1 until playedCards.size) {
         val card = playedCards[i]["card"] as Map<String, String>
-        
+
         if (card["suit"] == trumpSuit && winningCard["suit"] != trumpSuit) {
             winnerIndex = i
             winningCard = card
@@ -192,7 +265,10 @@ fun determineTrickWinner(playedCards: List<Map<String, Any>>, trumpSuit: String?
                 winnerIndex = i
                 winningCard = card
             }
-        } else if (winningCard["suit"] != trumpSuit && card["suit"] == leadSuit && winningCard["suit"] != leadSuit) {
+        } else if (winningCard["suit"] != trumpSuit &&
+                        card["suit"] == leadSuit &&
+                        winningCard["suit"] != leadSuit
+        ) {
             winnerIndex = i
             winningCard = card
         } else if (card["suit"] == leadSuit && winningCard["suit"] == leadSuit) {
@@ -202,7 +278,7 @@ fun determineTrickWinner(playedCards: List<Map<String, Any>>, trumpSuit: String?
             }
         }
     }
-    
+
     return winnerIndex
 }
 
