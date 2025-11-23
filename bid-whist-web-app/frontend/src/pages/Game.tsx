@@ -13,7 +13,7 @@ import DealingAnimation from "../components/DealingAnimation";
 // ... (inside Game component)
 
 // Render phase-specific overlay
-import { playMeowSound, playGetAttentionSound } from "../utils/soundEffects";
+import { playMeowSound, playGetAttentionSound, playOverTrumpSound } from "../utils/soundEffects";
 import { getWebSocketUrl } from "../config";
 
 const Game = () => {
@@ -439,11 +439,8 @@ const Game = () => {
         onHandCompleteReady={handleHandCompleteReady}
       />
 
-      {phase === "DEALING" && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="text-2xl text-white">Dealing Cards…</div>
-        </div>
-      )}
+      {/* Render phase-specific overlays */}
+      {renderPhaseOverlay()}
     </>
   );
 };

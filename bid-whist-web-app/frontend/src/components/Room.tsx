@@ -274,75 +274,56 @@ const Room: React.FC = () => {
             <div className="space-y-4 mt-4">
               {Array.from({ length: handCount }, (_, i) => (
                 <div key={i} className="p-4 md:p-6 bg-white/10 backdrop-blur-sm rounded-xl md:rounded-2xl border-3 border-white/30 shadow-xl">
-                  {i === 0 ? (
-                    /* HAND 1: EXISTING LAYOUT */
-                    <div className="flex flex-col gap-4">
-                      {/* Hand Name */}
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                        <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
-                          Hand {i + 1}:
-                        </span>
-                        <span className="text-2xl md:text-3xl font-bold text-center md:text-left" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>{currentUser?.name}</span>
-                      </div>
+                  <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                      <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
+                        Hand {i + 1}:
+                      </span>
+                      <span className="text-lg md:text-xl font-bold italic" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9)' }}>
+                        {i === 0 ? currentUser?.name : "Select Character & Team"}
+                      </span>
+                    </div>
 
-                      {/* Team Selection */}
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                        <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
-                          Team:
-                        </span>
-                        <div className="flex gap-2 md:gap-3 w-full md:w-auto">
-                          {["Us", "Them"].map((t) => (
+                    <div className="grid grid-cols-2 gap-4 md:gap-8">
+                      {["Us", "Them"].map((team) => (
+                        <div key={team} className="flex flex-col gap-3">
+                          <h3 className="text-center text-2xl font-bold rounded-lg py-1 bg-black/40" style={{ color: '#FFFFFF' }}>{team}</h3>
+
+                          {i === 0 ? (
+                            /* HAND 1: User Name Button */
                             <button
-                              key={t}
-                              onClick={() => handleTeam(i, t)}
+                              onClick={() => handleTeam(i, team)}
                               disabled={isReady}
-                              className="flex-1 md:flex-none px-6 md:px-10 py-2 md:py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-2xl min-w-[100px] md:min-w-[140px]"
+                              className="px-4 py-3 rounded-xl font-bold transition shadow-xl text-lg md:text-xl"
                               style={{
-                                height: '50px', // Mobile height
-                                minHeight: '50px',
-                                background: handTeams[i] === t
+                                height: '60px',
+                                background: handTeams[i] === team
                                   ? 'linear-gradient(to right, #f59e0b, #d97706)'
                                   : 'rgba(255, 255, 255, 0.15)',
                                 color: '#FFFFFF',
                                 opacity: isReady ? 0.4 : 1,
                                 cursor: isReady ? 'not-allowed' : 'pointer',
-                                boxShadow: handTeams[i] === t ? '0 0 30px rgba(245, 158, 11, 0.5)' : 'none',
-                                border: handTeams[i] === t ? 'none' : '2px solid rgba(255, 255, 255, 0.3)'
+                                boxShadow: handTeams[i] === team ? '0 0 30px rgba(245, 158, 11, 0.5)' : 'none',
+                                border: handTeams[i] === team ? 'none' : '2px solid rgba(255, 255, 255, 0.3)'
                               }}
                               onMouseEnter={(e) => {
-                                if (!isReady && handTeams[i] !== t) {
+                                if (!isReady && handTeams[i] !== team) {
                                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                                   e.currentTarget.style.transform = 'scale(1.05)';
                                 }
                               }}
                               onMouseLeave={(e) => {
-                                if (!isReady && handTeams[i] !== t) {
+                                if (!isReady && handTeams[i] !== team) {
                                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                                   e.currentTarget.style.transform = 'scale(1)';
                                 }
                               }}
                             >
-                              {t}
+                              {currentUser?.name}
                             </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    /* HAND 2 & 3: NEW 2-COLUMN LAYOUT */
-                    <div className="flex flex-col gap-4">
-                      <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                        <span className="text-xl md:text-2xl font-bold px-4 py-2 rounded-lg text-center md:text-left" style={{ color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.8)', minWidth: '120px' }}>
-                          Hand {i + 1}:
-                        </span>
-                        <span className="text-lg md:text-xl font-bold text-white/80 italic">Select Character & Team</span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 md:gap-8">
-                        {["Us", "Them"].map((team) => (
-                          <div key={team} className="flex flex-col gap-3">
-                            <h3 className="text-center text-2xl font-bold text-white bg-black/40 rounded-lg py-1">{team}</h3>
-                            {[
+                          ) : (
+                            /* HAND 2 & 3: Character Buttons */
+                            [
                               { value: 'reddy', label: '🐱 Reddy' },
                               { value: 'oatmeal', label: '🦙 Oatmeal' }
                             ].map((char) => {
@@ -383,12 +364,12 @@ const Room: React.FC = () => {
                                   {char.label}
                                 </button>
                               );
-                            })}
-                          </div>
-                        ))}
-                      </div>
+                            })
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
