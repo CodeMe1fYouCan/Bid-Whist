@@ -19,10 +19,19 @@ suspend fun handlePlayerJoined(
     val player = message.player ?: return
     println("PLAYER_JOINED received: ${player.name} (ID: ${player.id}) in room ${room.roomCode}")
     
-    val playerExists = room.players.any { it.id == player.id }
-    if (!playerExists) {
+    val existingPlayer = room.players.find { it.id == player.id }
+    
+    if (existingPlayer == null) {
         room.players.add(player)
         println("  → Player ${player.name} added to room. Total players: ${room.players.size}")
+    } else {
+        // Update existing player state to match the new connection (sync frontend state)
+        // This fixes the issue where backend has stale state (e.g. handCount=3) but frontend reset to 1
+        existingPlayer.handCount = player.handCount
+        existingPlayer.handTeams = player.handTeams
+        existingPlayer.handNames = player.handNames
+        existingPlayer.isReady = player.isReady
+        println("  → Player ${player.name} reconnected. Synced state with frontend.")
     }
     
     room.connections[player.id] = session
@@ -44,7 +53,12 @@ suspend fun handleUpdateHandCount(
     val playerId = message.playerId ?: return
     val handCount = message.handCount ?: return
     
-    val player = room.players.find { it.id == playerId } ?: return
+    val player = room.players.find { it.id == playerId }
+    if (player == null) {
+        println("⚠️ Update hand count failed: Player $playerId not found")
+        return
+    }
+    
     player.handCount = handCount
     println("Player ${player.name} updated hand count to $handCount")
     
@@ -60,7 +74,12 @@ suspend fun handleUpdateTeam(
     val team = message.team ?: return
     val handIndex = message.handIndex ?: 0
     
-    val player = room.players.find { it.id == playerId } ?: return
+    val player = room.players.find { it.id == playerId }
+    if (player == null) {
+        println("⚠️ Update team failed: Player $playerId not found")
+        return
+    }
+    
     player.handTeams[handIndex] = team
     println("Player ${player.name} updated hand $handIndex team to $team")
     
@@ -76,7 +95,12 @@ suspend fun handleUpdateHandName(
     val handName = message.handName ?: return
     val handIndex = message.handIndex ?: 0
     
-    val player = room.players.find { it.id == playerId } ?: return
+    val player = room.players.find { it.id == playerId }
+    if (player == null) {
+        println("⚠️ Update hand name failed: Player $playerId not found")
+        return
+    }
+    
     player.handNames[handIndex] = handName
     println("Player ${player.name} updated hand $handIndex name to $handName")
     
@@ -91,7 +115,12 @@ suspend fun handleToggleReady(
     val playerId = message.playerId ?: return
     val isReady = message.isReady ?: return
     
-    val player = room.players.find { it.id == playerId } ?: return
+    val player = room.players.find { it.id == playerId }
+    if (player == null) {
+        println("⚠️ Toggle ready failed: Player $playerId not found")
+        return
+    }
+    
     player.isReady = isReady
     println("Player ${player.name} ready state: $isReady")
     
@@ -103,9 +132,9 @@ suspend fun handleToggleReady(
     // Count hands by team
     var usHands = 0
     var themHands = 0
-    room.players.forEach { player ->
-        repeat(player.handCount) { handIdx ->
-            val team = player.handTeams[handIdx] ?: "Us"
+    room.players.forEach { p ->
+        repeat(p.handCount) { handIdx ->
+            val team = p.handTeams[handIdx] ?: "Us"
             if (team == "Us") usHands++ else themHands++
         }
     }

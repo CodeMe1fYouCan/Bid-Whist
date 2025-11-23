@@ -195,8 +195,24 @@ const Home: React.FC = () => {
                             onChange={handleUsernameChange}
                             placeholder="👤 Enter Your Name"
                             maxLength={20}
-                            className="w-full px-6 py-4 text-3xl border-3 border-white/30 rounded-2xl focus:outline-none focus:border-white focus:ring-4 focus:ring-white/40 bg-white/15 backdrop-blur-sm text-white placeholder-white/60 font-semibold text-center"
-                            style={{ height: '65px', fontSize: '28px' }}
+                            className="w-full px-6 py-4 text-3xl border-3 rounded-2xl focus:outline-none focus:ring-4 font-semibold text-center"
+                            style={{
+                                height: '65px',
+                                fontSize: '28px',
+                                backgroundColor: 'rgba(120, 53, 15, 0.3)',
+                                borderColor: 'rgba(217, 119, 6, 0.5)',
+                                color: '#fbbf24',
+                                borderWidth: '3px',
+                                borderStyle: 'solid'
+                            }}
+                            onFocus={(e) => {
+                                e.target.style.borderColor = '#f59e0b';
+                                e.target.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.5), 0 0 40px rgba(245, 158, 11, 0.3)';
+                            }}
+                            onBlur={(e) => {
+                                e.target.style.borderColor = 'rgba(217, 119, 6, 0.5)';
+                                e.target.style.boxShadow = 'none';
+                            }}
                         />
                     </div>
 
@@ -209,13 +225,56 @@ const Home: React.FC = () => {
                                 onChange={handleCreateCode}
                                 placeholder="🎮 CREATE ROOM CODE"
                                 maxLength={8}
-                                className="w-full px-6 py-4 text-3xl border-3 border-white/30 rounded-2xl focus:outline-none focus:border-white focus:ring-4 focus:ring-white/40 bg-white/15 backdrop-blur-sm text-white placeholder-white/60 uppercase font-mono text-center tracking-widest font-bold"
-                                style={{ height: '65px', fontSize: '28px', letterSpacing: '0.3em' }}
+                                className="w-full px-6 py-4 text-3xl rounded-2xl focus:outline-none uppercase font-mono text-center tracking-widest font-bold"
+                                style={{
+                                    height: '65px',
+                                    fontSize: '28px',
+                                    letterSpacing: '0.3em',
+                                    backgroundColor: 'rgba(120, 53, 15, 0.3)',
+                                    borderColor: 'rgba(217, 119, 6, 0.5)',
+                                    color: '#fbbf24',
+                                    borderWidth: '3px',
+                                    borderStyle: 'solid'
+                                }}
+                                onFocus={(e) => {
+                                    e.target.style.borderColor = '#f59e0b';
+                                    e.target.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.5), 0 0 40px rgba(245, 158, 11, 0.3)';
+                                }}
+                                onBlur={(e) => {
+                                    e.target.style.borderColor = 'rgba(217, 119, 6, 0.5)';
+                                    e.target.style.boxShadow = 'none';
+                                }}
                             />
                             <button
                                 onClick={handleCreateRoom}
                                 disabled={loading || !canCreate}
-                                className="w-full mt-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-3xl py-5 px-8 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-500 disabled:to-gray-600 shadow-2xl hover:shadow-green-500/50 hover:scale-105 glow-on-hover"
+                                className="w-full mt-4 font-bold rounded-2xl transition duration-300 shadow-2xl"
+                                style={{
+                                    height: '70px',
+                                    fontSize: '30px',
+                                    background: (loading || !canCreate)
+                                        ? 'linear-gradient(to right, #4b5563, #374151)'
+                                        : 'linear-gradient(to right, #f59e0b, #d97706)',
+                                    color: '#FFFFFF',
+                                    opacity: (loading || !canCreate) ? 0.5 : 1,
+                                    cursor: (loading || !canCreate) ? 'not-allowed' : 'pointer',
+                                    textShadow: '0 0 10px rgba(0,0,0,0.8), 2px 2px 4px rgba(0,0,0,1)',
+                                    boxShadow: (loading || !canCreate)
+                                        ? 'none'
+                                        : '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!loading && canCreate) {
+                                        e.currentTarget.style.background = 'linear-gradient(to right, #d97706, #b45309)';
+                                        e.currentTarget.style.boxShadow = '0 0 40px rgba(245, 158, 11, 0.6), 0 4px 25px rgba(0,0,0,0.4)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!loading && canCreate) {
+                                        e.currentTarget.style.background = 'linear-gradient(to right, #f59e0b, #d97706)';
+                                        e.currentTarget.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)';
+                                    }
+                                }}
                             >
                                 {loading ? '🔄 Creating...' : '🚀 Create & Join'}
                             </button>
@@ -239,8 +298,25 @@ const Home: React.FC = () => {
                                 onKeyPress={(e) => e.key === 'Enter' && handleJoinRoomClick()}
                                 placeholder="🚪 ENTER ROOM CODE"
                                 maxLength={8}
-                                className="w-full px-6 py-4 text-3xl border-3 border-white/30 rounded-2xl focus:outline-none focus:border-white focus:ring-4 focus:ring-white/40 bg-white/15 backdrop-blur-sm text-white placeholder-white/60 uppercase font-mono text-center tracking-widest font-bold"
-                                style={{ height: '65px', fontSize: '28px', letterSpacing: '0.3em' }}
+                                className="w-full px-6 py-4 text-3xl rounded-2xl focus:outline-none uppercase font-mono text-center tracking-widest font-bold"
+                                style={{
+                                    height: '65px',
+                                    fontSize: '28px',
+                                    letterSpacing: '0.3em',
+                                    backgroundColor: 'rgba(120, 53, 15, 0.3)',
+                                    borderColor: 'rgba(217, 119, 6, 0.5)',
+                                    color: '#fbbf24',
+                                    borderWidth: '3px',
+                                    borderStyle: 'solid'
+                                }}
+                                onFocus={(e) => {
+                                    e.target.style.borderColor = '#f59e0b';
+                                    e.target.style.boxShadow = '0 0 20px rgba(245, 158, 11, 0.5), 0 0 40px rgba(245, 158, 11, 0.3)';
+                                }}
+                                onBlur={(e) => {
+                                    e.target.style.borderColor = 'rgba(217, 119, 6, 0.5)';
+                                    e.target.style.boxShadow = 'none';
+                                }}
                             />
                             <p className="text-lg font-bold text-center px-4 py-2 rounded-lg inline-block" style={{ color: '#FFFFFF', textShadow: '0 0 10px rgba(0,0,0,0.9), 2px 2px 4px rgba(0,0,0,1)', backgroundColor: 'rgba(0,0,0,0.8)' }}>
                                 Ask your friend for their room code
@@ -248,7 +324,33 @@ const Home: React.FC = () => {
                             <button
                                 onClick={handleJoinRoomClick}
                                 disabled={loading || !canJoin}
-                                className="w-full mt-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold text-3xl py-5 px-8 rounded-2xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:from-gray-500 disabled:to-gray-600 shadow-2xl hover:shadow-green-500/50 hover:scale-105 glow-on-hover"
+                                className="w-full mt-4 font-bold rounded-2xl transition duration-300 shadow-2xl"
+                                style={{
+                                    height: '70px',
+                                    fontSize: '30px',
+                                    background: (loading || !canJoin)
+                                        ? 'linear-gradient(to right, #4b5563, #374151)'
+                                        : 'linear-gradient(to right, #f59e0b, #d97706)',
+                                    color: '#FFFFFF',
+                                    opacity: (loading || !canJoin) ? 0.5 : 1,
+                                    cursor: (loading || !canJoin) ? 'not-allowed' : 'pointer',
+                                    textShadow: '0 0 10px rgba(0,0,0,0.8), 2px 2px 4px rgba(0,0,0,1)',
+                                    boxShadow: (loading || !canJoin)
+                                        ? 'none'
+                                        : '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)'
+                                }}
+                                onMouseEnter={(e) => {
+                                    if (!loading && canJoin) {
+                                        e.currentTarget.style.background = 'linear-gradient(to right, #d97706, #b45309)';
+                                        e.currentTarget.style.boxShadow = '0 0 40px rgba(245, 158, 11, 0.6), 0 4px 25px rgba(0,0,0,0.4)';
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (!loading && canJoin) {
+                                        e.currentTarget.style.background = 'linear-gradient(to right, #f59e0b, #d97706)';
+                                        e.currentTarget.style.boxShadow = '0 0 30px rgba(245, 158, 11, 0.4), 0 4px 20px rgba(0,0,0,0.3)';
+                                    }
+                                }}
                             >
                                 {loading ? '🔄 Joining...' : '📍 Join Room'}
                             </button>
