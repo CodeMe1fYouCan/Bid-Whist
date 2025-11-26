@@ -45,7 +45,7 @@ const DealingAnimation: React.FC<DealingAnimationProps> = ({ dealerIndex = 0 }) 
     };
 
     return (
-        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+        <div className="fixed inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: 9999 }}>
             {/* Central Deck */}
             <div className="relative w-32 h-48">
                 {/* Static deck pile */}

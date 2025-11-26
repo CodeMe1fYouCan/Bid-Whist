@@ -166,9 +166,9 @@ export default function PlayingPhaseOverlay({
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none z-0"
         style={{ color: "rgba(255, 255, 255, 0.15)" }}
       >
-        <div className="text-8xl md:text-8xl lg:text-9xl mb-2 md:mb-4">🐱</div>
+        <div className="text-9xl md:text-9xl lg:text-[12rem] mb-2 md:mb-4">🐱</div>
         <div
-          className="font-bold text-5xl md:text-6xl lg:text-7xl"
+          className="font-bold text-6xl md:text-8xl lg:text-9xl"
           style={{
             color: "rgba(255, 255, 255, 0.15)",
             fontFamily: "serif",
@@ -178,7 +178,7 @@ export default function PlayingPhaseOverlay({
           Meow Meow
         </div>
         <div
-          className="text-2xl md:text-3xl lg:text-4xl mt-1 md:mt-2"
+          className="text-3xl md:text-4xl lg:text-5xl mt-1 md:mt-2"
           style={{
             color: "rgba(255, 255, 255, 0.15)",
             fontFamily: "serif",

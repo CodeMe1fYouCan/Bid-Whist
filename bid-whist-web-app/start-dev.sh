@@ -47,6 +47,17 @@ cd ..
 # Step 3: Start the backend server in background
 echo ""
 echo -e "${BLUE}🚀 Step 3: Starting backend server...${NC}"
+
+# Check if port 8080 is already in use
+if lsof -Pi :8080 -sTCP:LISTEN -t >/dev/null 2>&1 ; then
+    echo -e "${YELLOW}⚠️  Port 8080 is already in use${NC}"
+    EXISTING_PID=$(lsof -ti:8080)
+    echo -e "${YELLOW}   Killing existing process (PID: $EXISTING_PID)...${NC}"
+    kill -9 $EXISTING_PID 2>/dev/null || true
+    sleep 2
+    echo -e "${GREEN}✓ Cleared port 8080${NC}"
+fi
+
 cd server
 ./gradlew run > ../logs/backend.log 2>&1 &
 BACKEND_PID=$!

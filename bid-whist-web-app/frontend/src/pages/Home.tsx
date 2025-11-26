@@ -178,8 +178,8 @@ const Home: React.FC = () => {
 
                 {/* Error Message */}
                 {error && (
-                    <div className="mb-4 p-3 md:p-4 bg-red-500/20 backdrop-blur-sm border-2 border-red-400 text-white rounded-xl md:rounded-2xl">
-                        <p className="text-lg md:text-xl font-semibold">⚠️ {error}</p>
+                    <div className="mb-4 p-3 md:p-4 bg-red-500/20 backdrop-blur-sm border-2 border-red-400 rounded-xl md:rounded-2xl">
+                        <p className="text-lg md:text-xl font-semibold" style={{ color: '#ef4444' }}>⚠️ {error}</p>
                     </div>
                 )}
 

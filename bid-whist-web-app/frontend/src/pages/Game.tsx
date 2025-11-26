@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import useWebSocket from "../hooks/useWebSocket";
 import DealerSelection from "../components/DealerSelection";
-import BiddingPhase from "../components/BiddingPhase";
+import BiddingPhaseOverlay from "../components/BiddingPhaseOverlay";
 import TrumpSelection from "../components/TrumpSelection";
 import GameBoard from "../components/GameBoard";
 import DealingAnimation from "../components/DealingAnimation";
@@ -342,14 +342,17 @@ const Game = () => {
         />
       );
     } else if (phase === "BIDDING") {
-      content = (
-        <BiddingPhase
+      // BiddingPhaseOverlay handles its own layout/container
+      return (
+        <BiddingPhaseOverlay
           handAssignments={handAssignments}
           currentBidderIndex={currentBidderIndex}
           bids={bids}
           highestBid={highestBid}
           currentUserId={currentUserId}
           handleBid={handleBid}
+          dealerIndex={dealerIndex}
+          teamScores={teamScores}
         />
       );
     } else if (phase === "TRUMP_SELECTION") {

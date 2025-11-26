@@ -76,134 +76,143 @@ export default function BiddingPhaseOverlay({
         </div>
       )}
 
-      {/* Bidding Overlay - centered */}
-      <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-        <div
-          className="text-white p-4 md:p-8 md:text-lg lg:p-10 rounded-2xl md:rounded-3xl shadow-2xl max-w-sm md:max-w-2xl lg:max-w-3xl max-h-[85vh] overflow-y-auto border-2 md:border-4 border-white/20 pointer-events-auto"
-          style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "1rem" }}
-        >
-          <div className="space-y-3 md:space-y-6">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center" style={{ color: "#ffffff" }}>
-              Bidding Phase
-            </h2>
+      {/* Bidding Overlay - positioned at top on mobile, centered on desktop */}
+      <div
+        className="fixed z-50 top-[2vh] left-1/2 -translate-x-1/2 text-white p-4 md:p-8 md:text-lg lg:p-10 rounded-2xl md:rounded-3xl shadow-2xl w-[60vw] md:w-auto md:max-w-2xl lg:max-w-3xl max-h-[55vh] md:max-h-[85vh] overflow-y-auto border-2 md:border-4 border-white/20 pointer-events-auto md:relative md:top-auto md:left-auto md:translate-x-0 md:flex md:items-center md:justify-center md:inset-0 md:bg-transparent md:pointer-events-none"
+        style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "0.9rem" }}
+      >
+        <div className="space-y-3 md:space-y-6">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center" style={{ color: "#ffffff" }}>
+            Bidding Phase
+          </h2>
 
-            {/* Current Bidder */}
-            <div className="text-center">
-              <div className="text-base md:text-xl" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
-                Current Bidder:
-              </div>
-              <div
-                className="text-xl md:text-2xl lg:text-3xl font-bold"
-                style={{
-                  color: currentBidder?.team === fayeTeam ? "#c4b5fd" : "#60a5fa",
-                }}
-              >
-                {currentBidder?.playerName?.toLowerCase() === "faye" && "💜 "}
-                {currentBidder?.playerName} - Hand {parseInt(currentBidder?.handIndex) + 1}
-                {isDealer && <span className="ml-2 text-yellow-300">👑 Dealer</span>}
-                {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
-              </div>
-              <div className="mt-1 text-sm md:text-base" style={{ color: "rgba(255, 255, 255, 0.8)" }}>
-                Highest Bid: {highestBid === 0 ? "None" : highestBid}
-              </div>
+          {/* Current Bidder */}
+          <div className="text-center">
+            <div className="text-base md:text-xl" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
+              Current Bidder:
             </div>
+            <div
+              className="text-xl md:text-2xl lg:text-3xl font-bold"
+              style={{
+                color: currentBidder?.team === fayeTeam ? "#c4b5fd" : "#60a5fa",
+              }}
+            >
+              {currentBidder?.playerName?.toLowerCase() === "faye" && "💜 "}
+              {currentBidder?.playerName} - Hand {parseInt(currentBidder?.handIndex) + 1}
+              {isDealer && <span className="ml-2 text-yellow-300">👑 Dealer</span>}
+              {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
+            </div>
+            <div className="mt-1 text-sm md:text-base" style={{ color: "rgba(255, 255, 255, 0.8)" }}>
+              Highest Bid: {highestBid === 0 ? "None" : highestBid}
+            </div>
+          </div>
 
-            {/* Bid Input (only show if it's my turn) */}
-            {isMyTurn && (
-              <div className="bg-yellow-900/20 border-2 border-yellow-400 rounded-lg p-6">
-                <div className="text-center mb-4">
-                  <div className="text-lg font-bold" style={{ color: "#ffffff" }}>
-                    Your Turn to Bid
-                  </div>
-                  <div className="text-sm" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
-                    Minimum bid: {minBid} (Range: 1-7)
-                    {isDealer && (
-                      <span className="block text-yellow-300 mt-1">
-                        👑 As dealer, you can match the highest bid
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3 items-center">
-                  <div className="flex gap-2 md:gap-3">
-                    <input
-                      type="number"
-                      min={minBid}
-                      max="7"
-                      value={bidInput}
-                      onChange={(e) => setBidInput(e.target.value)}
-                      className={`w-24 md:w-32 px-3 md:px-4 py-3 rounded text-white text-center text-lg md:text-xl touch-target ${bidInput && !canBid
-                        ? "bg-red-900 border-2 border-red-500"
-                        : "bg-gray-700 border border-gray-600"
-                        }`}
-                      placeholder={`${minBid}-7`}
-                    />
-                    <button
-                      onClick={() => handleBid?.(currentHandId, bidValue)}
-                      disabled={!canBid}
-                      className="px-4 md:px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-base md:text-lg touch-target"
-                    >
-                      Bid
-                    </button>
-                    <button
-                      onClick={() => handleBid?.(currentHandId, "pass")}
-                      disabled={!canPass}
-                      className="px-4 md:px-6 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-base md:text-lg touch-target"
-                    >
-                      Pass
-                    </button>
-                  </div>
-                  {bidInput && !canBid && (
-                    <div className="text-red-400 text-sm font-semibold">
-                      {bidValue < minBid
-                        ? `Bid must be at least ${minBid}`
-                        : bidValue > 7
-                          ? "Bid cannot exceed 7"
-                          : "Invalid bid"}
-                    </div>
+          {/* Bid Input (only show if it's my turn) */}
+          {isMyTurn && (
+            <div className="bg-yellow-900/20 border-2 border-yellow-400 rounded-lg p-4 md:p-6">
+              <div className="text-center mb-3 md:mb-4">
+                <div className="text-sm" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
+                  Minimum bid: {minBid} (Range: 1-7)
+                  {isDealer && (
+                    <span className="block text-yellow-300 mt-1">
+                      👑 As dealer, you can match the highest bid
+                    </span>
                   )}
                 </div>
               </div>
-            )}
 
-            {/* Bid History */}
-            <div>
-              <h3 className="text-xl font-bold mb-3" style={{ color: "#ffffff" }}>
-                Bid History
-              </h3>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {bids.length === 0 ? (
-                  <div
-                    className="text-center py-4"
-                    style={{ color: "rgba(255, 255, 255, 0.7)" }}
+              <div className="flex flex-col gap-3 items-center">
+                <div className="flex gap-2 md:gap-3">
+                  <input
+                    type="number"
+                    min={minBid}
+                    max="7"
+                    value={bidInput}
+                    onChange={(e) => setBidInput(e.target.value)}
+                    className={`w-24 md:w-32 px-3 md:px-4 py-2 md:py-3 rounded text-white text-center text-lg md:text-xl touch-target ${bidInput && !canBid
+                      ? "bg-red-900 border-2 border-red-500"
+                      : "bg-gray-700 border border-gray-600"
+                      }`}
+                    placeholder={`${minBid}-7`}
+                  />
+                  <button
+                    onClick={() => {
+                      console.log("Bid button clicked", { currentHandId, bidValue });
+                      if (handleBid) {
+                        handleBid(currentHandId, bidValue);
+                      } else {
+                        console.error("handleBid is undefined");
+                      }
+                    }}
+                    disabled={!canBid}
+                    className="px-4 md:px-6 py-2 md:py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-sm md:text-lg touch-target"
                   >
-                    No bids yet
+                    Bid
+                  </button>
+                  <button
+                    onClick={() => {
+                      console.log("Pass button clicked", { currentHandId });
+                      if (handleBid) {
+                        handleBid(currentHandId, "pass");
+                      } else {
+                        console.error("handleBid is undefined");
+                      }
+                    }}
+                    disabled={!canPass}
+                    className="px-4 md:px-6 py-2 md:py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-sm md:text-lg touch-target"
+                  >
+                    Pass
+                  </button>
+                </div>
+                {bidInput && !canBid && (
+                  <div className="text-red-400 text-sm font-semibold">
+                    {bidValue < minBid
+                      ? `Bid must be at least ${minBid}`
+                      : bidValue > 7
+                        ? "Bid cannot exceed 7"
+                        : "Invalid bid"}
                   </div>
-                ) : (
-                  bids.map((bid: any, idx: number) => {
-                    const hand = handAssignments[bid.handIndex];
-                    const handColor = hand?.team === fayeTeam ? "#c4b5fd" : "#60a5fa";
-                    return (
-                      <div
-                        key={idx}
-                        className="p-3 bg-white/10 rounded border border-white/30"
-                      >
-                        <span className="font-bold" style={{ color: handColor }}>
-                          {hand?.playerName?.toLowerCase() === "faye" && "💜 "}
-                          {hand?.playerName} - Hand {parseInt(hand?.handIndex) + 1}:
-                        </span>
-                        <span
-                          className="ml-2"
-                          style={{ color: bid.amount === "pass" ? "#f87171" : "#4ade80" }}
-                        >
-                          {bid.amount === "pass" ? "Passed" : `Bid ${bid.amount}`}
-                        </span>
-                      </div>
-                    );
-                  })
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Bid History */}
+          <div>
+            <h3 className="text-lg md:text-xl font-bold mb-2 md:mb-3" style={{ color: "#ffffff" }}>
+              Bid History
+            </h3>
+            <div className="space-y-2 max-h-32 md:max-h-64 overflow-y-auto">
+              {bids.length === 0 ? (
+                <div
+                  className="text-center py-4"
+                  style={{ color: "rgba(255, 255, 255, 0.7)" }}
+                >
+                  No bids yet
+                </div>
+              ) : (
+                bids.map((bid: any, idx: number) => {
+                  const hand = handAssignments[bid.handIndex];
+                  const handColor = hand?.team === fayeTeam ? "#c4b5fd" : "#60a5fa";
+                  return (
+                    <div
+                      key={idx}
+                      className="p-2 md:p-3 bg-white/10 rounded border border-white/30 text-sm md:text-base"
+                    >
+                      <span className="font-bold" style={{ color: handColor }}>
+                        {hand?.playerName?.toLowerCase() === "faye" && "💜 "}
+                        {hand?.playerName} - Hand {parseInt(hand?.handIndex) + 1}:
+                      </span>
+                      <span
+                        className="ml-2"
+                        style={{ color: bid.amount === "pass" ? "#f87171" : "#4ade80" }}
+                      >
+                        {bid.amount === "pass" ? "Passed" : `Bid ${bid.amount}`}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>
