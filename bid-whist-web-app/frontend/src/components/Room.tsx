@@ -87,9 +87,8 @@ const Room: React.FC = () => {
           }
         }
         setGameStarted(true);
-        // Use window.location.href instead of history.push to force a full page reload
-        // This makes iOS Safari re-evaluate orientation support
-        window.location.href = `/game/${roomCode}`;
+        // Use history.push for client-side navigation to avoid 404
+        history.push(`/game/${roomCode}`);
         break;
 
       default:
