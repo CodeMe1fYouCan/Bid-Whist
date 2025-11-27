@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import useWebSocket from "../hooks/useWebSocket";
 import DealerSelection from "../components/DealerSelection";
 import BiddingPhaseOverlay from "../components/BiddingPhaseOverlay";
-import TrumpSelection from "../components/TrumpSelection";
 import GameBoard from "../components/GameBoard";
 import DealingAnimation from "../components/DealingAnimation";
 
@@ -66,21 +65,26 @@ const Game = () => {
     if (stored) setCurrentUserId(JSON.parse(stored).id);
   }, [roomCode]);
 
-  /* Send PLAYER_JOINED when connected to get game state - ONCE */
+  /* Send PLAYER_JOINED when connected to get game  /* Join Room on Connect */
   useEffect(() => {
-    if (!isConnected || !currentUserId || joinedRef.current) return;
+    if (!isConnected) {
+      // Reset joined state so we re-join when connection is restored
+      joinedRef.current = false;
+      return;
+    }
 
-    const stored = sessionStorage.getItem(`room_${roomCode}_user`);
-    const playerData = sessionStorage.getItem(`room_${roomCode}_player`);
+    if (currentUserId && !joinedRef.current) {
+      const stored = sessionStorage.getItem(`room_${roomCode}_user`);
+      const playerData = sessionStorage.getItem(`room_${roomCode}_player`);
+      const user = stored ? JSON.parse(stored) : {};
 
-    if (stored) {
-      const user = JSON.parse(stored);
-      let playerInfo = {
-        id: user.id,
-        name: user.name,
+      let playerInfo: any = {
+        id: currentUserId,
+        name: user.name || "Unknown",
         isReady: true,
         handCount: 1,
-        handTeams: { 0: "Us" }
+        handTeams: { 0: "Us" },
+        handNames: { 0: user.name || "Unknown" }
       };
 
       // Try to get the full player data if available
@@ -150,129 +154,150 @@ const Game = () => {
   }, []);
 
   /* WS Message Handler */
+  /* WS Message Handler */
+  // Track how many messages we've processed to avoid skipping any if they arrive in batches
+  const processedMessageCount = useRef(0);
+
   useEffect(() => {
-    if (!messages.length) return;
-    const data = JSON.parse(messages[messages.length - 1]);
-    console.log("🎮 Game page received:", data.type, data);
+    if (messages.length <= processedMessageCount.current) return;
 
-    if (data.phase) setPhase(data.phase);
-    if (data.players) setPlayers(data.players);
-    if (data.handAssignments) {
-      console.log("📋 Received handAssignments:", data.handAssignments);
-      setHandAssignments(data.handAssignments);
-    }
-    if (data.playerHands) {
-      console.log("📇 Updating playerHands:", data.playerHands);
-      setPlayerHands(data.playerHands);
-    }
-    if (data.currentBidderIndex !== undefined) setCurrentBidderIndex(data.currentBidderIndex);
-    if (data.bids) setBids(data.bids);
-    if (data.highestBid !== undefined) setHighestBid(data.highestBid);
-    if (data.dealerIndex !== undefined) setDealerIndex(data.dealerIndex);
-    if (data.totalPoints) setTotalPoints(data.totalPoints);
-    if (data.teamScores) setTeamScores(data.teamScores);
-    if (data.bidWinnerHandId) setBidWinnerHandId(data.bidWinnerHandId);
-    if (data.bidWinnerIndex !== undefined) setBidWinnerIndex(data.bidWinnerIndex);
-    if (data.winningBid !== undefined) setWinningBid(data.winningBid);
-    if (data.trumpSuit) setTrumpSuit(data.trumpSuit);
-    if (data.currentPlayerIndex !== undefined) setCurrentPlayerIndex(data.currentPlayerIndex);
-    if (data.tricksWon) setTricksWon(data.tricksWon);
-    if (data.trickNumber !== undefined) setTrickNumber(data.trickNumber);
+    // Process all new messages
+    const newMessages = messages.slice(processedMessageCount.current);
+    processedMessageCount.current = messages.length;
 
-    if (data.type === "PLAYING_PHASE" || data.type === "PLAYING") {
-      // Handle both new phase start and reconnection
-      console.log("📥 PLAYING phase message received");
-      console.log("   data.playedCards:", data.playedCards);
-      console.log("   playedCards length:", data.playedCards?.length);
+    newMessages.forEach(msgJson => {
+      try {
+        const data = JSON.parse(msgJson);
+        console.log("🎮 Game page received:", data.type, data);
 
-      if (data.playedCards && data.playedCards.length > 0) {
-        console.log("   ✓ Setting currentTrick with existing cards:", data.playedCards);
-        setCurrentTrick(data.playedCards);
-        currentTrickRef.current = data.playedCards;
-      } else {
-        console.log("   ✓ Clearing currentTrick (no cards in play)");
-        setCurrentTrick([]);
-        currentTrickRef.current = [];
-      }
-    }
+        if (data.phase) setPhase(data.phase);
+        if (data.players) setPlayers(data.players);
+        if (data.handAssignments) {
+          console.log("📋 Received handAssignments:", data.handAssignments);
+          setHandAssignments(data.handAssignments);
+        }
+        if (data.playerHands) {
+          console.log("📇 Updating playerHands:", data.playerHands);
+          setPlayerHands(data.playerHands);
+        }
+        if (data.currentBidderIndex !== undefined) setCurrentBidderIndex(data.currentBidderIndex);
+        if (data.bids) setBids(data.bids);
+        if (data.highestBid !== undefined) setHighestBid(data.highestBid);
+        if (data.dealerIndex !== undefined) setDealerIndex(data.dealerIndex);
+        if (data.totalPoints) setTotalPoints(data.totalPoints);
+        if (data.teamScores) setTeamScores(data.teamScores);
+        if (data.bidWinnerHandId) setBidWinnerHandId(data.bidWinnerHandId);
+        if (data.bidWinnerIndex !== undefined) setBidWinnerIndex(data.bidWinnerIndex);
+        if (data.winningBid !== undefined) setWinningBid(data.winningBid);
+        if (data.trumpSuit) setTrumpSuit(data.trumpSuit);
+        if (data.currentPlayerIndex !== undefined) setCurrentPlayerIndex(data.currentPlayerIndex);
+        if (data.tricksWon) setTricksWon(data.tricksWon);
+        if (data.trickNumber !== undefined) setTrickNumber(data.trickNumber);
 
-    // Also handle if playedCards comes in any message during PLAYING phase
-    if (data.phase === "PLAYING" && data.playedCards && data.playedCards.length > 0) {
-      console.log("📥 Received playedCards in PLAYING phase message:", data.playedCards);
-      setCurrentTrick(data.playedCards);
-      currentTrickRef.current = data.playedCards;
-    }
+        if (data.type === "PLAYING_PHASE" || data.type === "PLAYING") {
+          // Handle both new phase start and reconnection
+          console.log("📥 PLAYING phase message received");
+          console.log("   data.playedCards:", data.playedCards);
+          console.log("   playedCards length:", data.playedCards?.length);
 
-    if (data.type === "CARD_PLAYED") {
-      console.log("📥 CARD_PLAYED received:", data);
-
-      // Play sound effects
-      if (data.isOverTrump) {
-        console.log("🐱⬆️ Over-trump detected! Playing high-pitch meow");
-        playOverTrumpSound();
-      } else if (data.isTrumpCut) {
-        console.log("🐱 Trump cut detected! Playing meow sound");
-        playMeowSound();
-      }
-
-      if (data.playedCards) {
-        console.log("   Setting currentTrick to:", data.playedCards);
-        setCurrentTrick(data.playedCards);
-        currentTrickRef.current = data.playedCards; // Keep ref in sync
-
-        // After animation, clear the trick and save to last trick
-        // We use a timeout to allow the user to see the played card before clearing
-        // But we need to be careful not to clear if new cards come in
-        const completedTrick = data.playedCards;
-        setTimeout(() => {
-          // Only clear if these are still the current cards (simple check)
-          // In a real app we might want more robust ID checking
-          if (currentTrickRef.current === completedTrick) {
-            console.log("   Setting lastTrick to:", completedTrick);
-            setLastTrick(completedTrick);
-            setLastTrickWinner(data.winnerHandId);
+          if (data.playedCards && data.playedCards.length > 0) {
+            console.log("   ✓ Setting currentTrick with existing cards:", data.playedCards);
+            setCurrentTrick(data.playedCards);
+            currentTrickRef.current = data.playedCards;
+          } else {
+            console.log("   ✓ Clearing currentTrick (no cards in play)");
             setCurrentTrick([]);
-            currentTrickRef.current = []; // Clear ref too
-            setTrickWinnerHandId(null);
-            setShowTrickComplete(false);
+            currentTrickRef.current = [];
           }
-        }, 1500);
+        }
+
+        // Also handle if playedCards comes in any message during PLAYING phase
+        if (data.phase === "PLAYING" && data.playedCards && data.playedCards.length > 0) {
+          console.log("📥 Received playedCards in PLAYING phase message:", data.playedCards);
+          setCurrentTrick(data.playedCards);
+          currentTrickRef.current = data.playedCards;
+        }
+
+        if (data.type === "CARD_PLAYED") {
+          console.log("📥 CARD_PLAYED received:", data);
+
+          // Play sound effects
+          if (data.isOverTrump) {
+            console.log("🐱⬆️ Over-trump detected! Playing high-pitch meow");
+            playOverTrumpSound();
+          } else if (data.isTrumpCut) {
+            console.log("🐱 Trump cut detected! Playing meow sound");
+            playMeowSound();
+          }
+
+          if (data.playedCards) {
+            console.log("   Setting currentTrick to:", data.playedCards);
+            setCurrentTrick(data.playedCards);
+            currentTrickRef.current = data.playedCards; // Keep ref in sync
+
+            // After animation, clear the trick and save to last trick
+            // We use a timeout to allow the user to see the played card before clearing
+            // Only do this if the trick is complete (4 cards)
+            const completedTrick = data.playedCards;
+            if (completedTrick.length === 4) {
+              // Trigger animation immediately
+              console.log("✨ Trick complete! Triggering animation for winner:", data.winnerHandId);
+              setTrickWinnerHandId(data.winnerHandId);
+              setShowTrickComplete(true);
+
+              setTimeout(() => {
+                // Only clear if these are still the current cards (simple check)
+                if (currentTrickRef.current === completedTrick) {
+                  console.log("   Setting lastTrick to:", completedTrick);
+                  setLastTrick(completedTrick);
+                  setLastTrickWinner(data.winnerHandId);
+                  setCurrentTrick([]);
+                  currentTrickRef.current = []; // Clear ref too
+                  setTrickWinnerHandId(null);
+                  setShowTrickComplete(false);
+                }
+              }, 1500);
+            }
+          }
+
+          if (data.type === "PLAY_ERROR") {
+            alert(data.message || "Invalid play!");
+          }
+        }
+
+        if (data.type === "HAND_COMPLETE") {
+          console.log("📋 HAND_COMPLETE received:", data);
+          console.log("   Setting handCompleteData to:", data);
+          setHandCompleteData(data);
+          setReadyPlayers([]);
+        }
+
+        if (data.type === "HAND_COMPLETE_READY_UPDATE") {
+          console.log("✓ Ready update:", data);
+          setReadyPlayers(data.readyPlayers || []);
+        }
+
+        if (data.type === "GAME_COMPLETE") {
+          console.log("🏆 GAME_COMPLETE received:", data);
+          setHandCompleteData(data);
+        }
+
+        if (data.type === "DEALER_GUESS_UPDATE") {
+          setDealerGuesses(data.guesses || {});
+        }
+        if (data.type === "DEALER_REVEAL") {
+          setDealerGuesses(data.guesses || {});
+          // Store reveal data globally for the reveal component
+          (window as any).dealerRevealData = {
+            targetNumber: data.targetNumber,
+            guesses: data.guesses,
+            dealerHandId: data.dealerHandId
+          };
+        }
+      } catch (e) {
+        console.error("Error processing message:", e);
       }
-
-      if (data.type === "PLAY_ERROR") {
-        alert(data.message || "Invalid play!");
-      }
-    }
-
-    if (data.type === "HAND_COMPLETE") {
-      console.log("📋 HAND_COMPLETE received:", data);
-      console.log("   Setting handCompleteData to:", data);
-      setHandCompleteData(data);
-      setReadyPlayers([]);
-    }
-
-    if (data.type === "HAND_COMPLETE_READY_UPDATE") {
-      console.log("✓ Ready update:", data);
-      setReadyPlayers(data.readyPlayers || []);
-    }
-
-    if (data.type === "GAME_COMPLETE") {
-      console.log("🏆 GAME_COMPLETE received:", data);
-      setHandCompleteData(data);
-    }
-
-    if (data.type === "DEALER_GUESS_UPDATE") {
-      setDealerGuesses(data.guesses || {});
-    }
-    if (data.type === "DEALER_REVEAL") {
-      setDealerGuesses(data.guesses || {});
-      // Store reveal data globally for the reveal component
-      (window as any).dealerRevealData = {
-        targetNumber: data.targetNumber,
-        guesses: data.guesses,
-        dealerHandId: data.dealerHandId
-      };
-    }
+    });
   }, [messages]);
 
   /* Build handAssignments if server doesn't send them */
@@ -353,17 +378,6 @@ const Game = () => {
           handleBid={handleBid}
           dealerIndex={dealerIndex}
           teamScores={teamScores}
-        />
-      );
-    } else if (phase === "TRUMP_SELECTION") {
-      content = (
-        <TrumpSelection
-          bidWinnerHandId={bidWinnerHandId}
-          bidWinnerIndex={bidWinnerIndex}
-          winningBid={winningBid}
-          handAssignments={handAssignments}
-          currentUserId={currentUserId}
-          handleTrumpSelection={handleTrumpSelection}
         />
       );
     } else if (phase === "DEALING") {

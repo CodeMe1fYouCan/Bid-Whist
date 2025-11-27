@@ -5,6 +5,7 @@ import DealerSelectionOverlay from "./DealerSelectionOverlay";
 import BiddingPhaseOverlay from "./BiddingPhaseOverlay";
 import TrumpSelectionOverlay from "./TrumpSelectionOverlay";
 import HandCompleteOverlay from "./HandCompleteOverlay";
+import { useResponsiveCardSize } from "../hooks/useResponsiveCardSize";
 import type {
   CoreGameState,
   DealerPhaseState,
@@ -17,16 +18,19 @@ import type {
 // Combined props interface
 interface GameBoardProps
   extends CoreGameState,
-    DealerPhaseState,
-    BiddingPhaseState,
-    TrumpPhaseState,
-    PlayingPhaseState,
-    CompletePhaseState {}
+  DealerPhaseState,
+  BiddingPhaseState,
+  TrumpPhaseState,
+  PlayingPhaseState,
+  CompletePhaseState { }
 
 export default function GameBoard(props: GameBoardProps) {
   // Destructure only frequently accessed props to avoid repetitive props.x
   const { handAssignments, playerHands, currentUserId, phase } = props;
-  
+
+  // Detect mobile to disable drag-and-drop
+  const { isMobile } = useResponsiveCardSize();
+
   const showCards = phase === "BIDDING" || phase === "PLAYING" || phase === "TRUMP_SELECTION" || phase === "HAND_COMPLETE";
   const [sortedCards, setSortedCards] = React.useState<Record<string, any[]>>({});
   const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
@@ -52,7 +56,7 @@ export default function GameBoard(props: GameBoardProps) {
     }
   } else if (phase === "TRUMP_SELECTION" && props.bidWinnerHandId) {
     // During trump selection, show the hand that won the bid
-    const bidWinnerHand = handAssignments.find((h: any) => 
+    const bidWinnerHand = handAssignments.find((h: any) =>
       `${h.playerId}_hand_${h.handIndex}` === props.bidWinnerHandId
     );
     if (bidWinnerHand && bidWinnerHand.playerId === currentUserId) {
@@ -113,10 +117,10 @@ export default function GameBoard(props: GameBoardProps) {
       // Determine if we should delay the switch
       const currentHand = handAssignments[props.currentPlayerIndex ?? 0];
       const isMyTurn = currentHand && currentHand.playerId === currentUserId;
-      
+
       // Apply 2.5s delay when in PLAYING phase and switching between my hands
       const shouldDelay = phase === "PLAYING" && myHandAssignments.length > 1;
-      
+
       if (shouldDelay) {
         console.log("⏱️ Scheduling hand switch from", delayedActiveHandIndex, "to", targetActiveHandIndex, "in 1.5s");
         handSwitchTimeoutRef.current = setTimeout(() => {
@@ -154,17 +158,17 @@ export default function GameBoard(props: GameBoardProps) {
       activeHandId,
       cardsInHand: playerHands[activeHandId]?.length
     });
-    
+
     if (myCards.length > 0 && activeHandId) {
       const suitOrder = { hearts: 0, spades: 1, diamonds: 2, clubs: 3 };
       const rankOrder = { 'A': 13, 'K': 12, 'Q': 11, 'J': 10, '10': 9, '9': 8, '8': 7, '7': 6, '6': 5, '5': 4, '4': 3, '3': 2, '2': 1 };
-      
+
       const sorted = [...myCards].sort((a, b) => {
         const suitDiff = suitOrder[a.suit as keyof typeof suitOrder] - suitOrder[b.suit as keyof typeof suitOrder];
         if (suitDiff !== 0) return suitDiff;
         return (rankOrder[b.rank as keyof typeof rankOrder] || 0) - (rankOrder[a.rank as keyof typeof rankOrder] || 0);
       });
-      
+
       console.log("   Setting sorted cards:", sorted.length, "cards");
       setSortedCards(prev => ({ ...prev, [activeHandId]: sorted }));
     } else if (myCards.length === 0 && activeHandId) {
@@ -177,7 +181,7 @@ export default function GameBoard(props: GameBoardProps) {
   const displayCards = (activeHandId && sortedCards[activeHandId]) ? sortedCards[activeHandId] : myCards;
 
   // Check if it's my turn to play
-  const isMyTurnToPlay = phase === "PLAYING" && handAssignments.length > 0 && 
+  const isMyTurnToPlay = phase === "PLAYING" && handAssignments.length > 0 &&
     handAssignments[props.currentPlayerIndex ?? 0]?.playerId === currentUserId;
 
   // Handle double-click to play card during playing phase
@@ -196,10 +200,15 @@ export default function GameBoard(props: GameBoardProps) {
     }
   };
 
-  // Drag and drop handlers
+  // Drag and drop handlers - disabled on mobile
   const [draggedCard, setDraggedCard] = React.useState<any>(null);
 
   const handleDragStart = (e: React.DragEvent, index: number, card: any) => {
+    // Disable drag on mobile - use double-tap instead
+    if (isMobile) {
+      e.preventDefault();
+      return;
+    }
     console.log("🎴 Drag start:", card);
     setDraggedIndex(index);
     setDraggedCard(card);
@@ -209,31 +218,43 @@ export default function GameBoard(props: GameBoardProps) {
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
+    // Disable drag on mobile
+    if (isMobile) return;
+
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index || !activeHandId) return;
-    
+
     const newCards = [...displayCards];
     const draggedCardData = newCards[draggedIndex];
     newCards.splice(draggedIndex, 1);
     newCards.splice(index, 0, draggedCardData);
-    
+
     setSortedCards(prev => ({ ...prev, [activeHandId]: newCards }));
     setDraggedIndex(index);
   };
 
   const handleDragEnd = () => {
+    // Disable drag on mobile
+    if (isMobile) return;
+
     setDraggedIndex(null);
     setDraggedCard(null);
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    // Disable drag on mobile
+    if (isMobile) return;
+
     e.preventDefault();
     setDraggedIndex(null);
     setDraggedCard(null);
   };
 
-// Handle drop on center to play card
+  // Handle drop on center to play card
   const handleDropOnCenter = (e: React.DragEvent) => {
+    // Disable drag on mobile
+    if (isMobile) return;
+
     e.preventDefault();
     e.stopPropagation();
     console.log("🎯 Drop on center!", {
@@ -263,16 +284,16 @@ export default function GameBoard(props: GameBoardProps) {
   /** Helper to get player name by position */
   const getPlayerName = (position: "ACROSS" | "LEFT" | "RIGHT") => {
     if (handAssignments.length !== 4) return position;
-    
+
     // Find the active hand's index in the full hand assignments
-    const activeHandGlobalIndex = activeHand 
-      ? handAssignments.findIndex((h: any) => 
-          h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
-        )
+    const activeHandGlobalIndex = activeHand
+      ? handAssignments.findIndex((h: any) =>
+        h.playerId === activeHand.playerId && h.handIndex === activeHand.handIndex
+      )
       : handAssignments.findIndex((h: any) => h.playerId === currentUserId);
-    
+
     if (activeHandGlobalIndex === -1) return position;
-    
+
     // Map positions relative to active hand (index 0 = active hand, 1 = left, 2 = across, 3 = right)
     let targetIndex;
     switch (position) {
@@ -288,7 +309,7 @@ export default function GameBoard(props: GameBoardProps) {
       default:
         return position;
     }
-    
+
     return handAssignments[targetIndex]?.playerName || position;
   };
 
@@ -339,7 +360,7 @@ export default function GameBoard(props: GameBoardProps) {
         const targetNumber = (window as any).dealerRevealData?.targetNumber;
         const guesses = (window as any).dealerRevealData?.guesses || {};
         const dealerHandId = (window as any).dealerRevealData?.dealerHandId;
-        
+
         return (
           <DealerReveal
             targetNumber={targetNumber}

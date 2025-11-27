@@ -66,7 +66,16 @@ export default function TrumpSelectionOverlay({
                   <div
                     key={option.value}
                     className="relative cursor-pointer transform transition-transform hover:scale-110 hover:-translate-y-2 touch-target"
-                    onClick={() => handleTrumpSelection?.(option.value)}
+                    onClick={() => {
+                      console.log("🎴 Trump card clicked:", option.value);
+                      console.log("   handleTrumpSelection exists?", !!handleTrumpSelection);
+                      console.log("   isMyTurn?", isMyTurn);
+                      if (handleTrumpSelection) {
+                        handleTrumpSelection(option.value);
+                      } else {
+                        console.error("❌ handleTrumpSelection is undefined!");
+                      }
+                    }}
                   >
                     <Card
                       suit={option.suit}

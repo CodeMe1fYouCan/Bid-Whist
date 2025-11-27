@@ -172,7 +172,7 @@ export default function Table({
                 <div
                   key={`${card.suit}-${card.rank}-${idx}`}
                   className={`cursor-pointer touch-target ${phase === "PLAYING" && !isMyTurnToPlay ? "opacity-70" : ""}`}
-                  draggable={true}
+                  draggable={!isMobile}
                   onDragStart={(e: React.DragEvent) => handleDragStart(e, idx, card)}
                   onDragOver={(e: React.DragEvent) => handleDragOver(e, idx)}
                   onDragEnd={() => handleDragEnd()}
@@ -319,16 +319,16 @@ export default function Table({
           const cardCount = playerHands[leftHandId]?.length ?? 13;
 
           return (
-            <div className="flex flex-col items-center" style={{ height: '60vh', maxHeight: '500px' }}>
+            <div className="flex flex-col items-center" style={{ height: isMobile ? '50vh' : '60vh', maxHeight: isMobile ? '400px' : '500px' }}>
               {(() => {
                 const overlap = calculateOverlap(
                   cardCount,
                   opponentCardHeight, // Use HEIGHT because cards are rotated 90deg, so height is the "stacking dimension"
-                  Math.min(windowHeight * 0.6, 500),
-                  isMobile ? 15 : 25 // Tighter default visible for vertical stacks
+                  Math.min(windowHeight * (isMobile ? 0.5 : 0.6), isMobile ? 400 : 500),
+                  isMobile ? 12 : 25 // Tighter default visible for vertical stacks
                 );
                 return Array.from({ length: cardCount }).map((_, i) => (
-                  <div key={i} style={{ marginTop: i === 0 ? 0 : `${overlap}px` }} className="scale-75 origin-left md:scale-100">
+                  <div key={i} style={{ marginTop: i === 0 ? 0 : `${overlap}px` }} className={`origin-left md:scale-100 ${isMobile ? "scale-60" : "scale-75"}`}>
                     <div className="transform -rotate-90">
                       <Card faceUp={false} width={opponentCardWidth} height={opponentCardHeight} />
                     </div>
@@ -369,16 +369,16 @@ export default function Table({
           const cardCount = playerHands[rightHandId]?.length ?? 13;
 
           return (
-            <div className="flex flex-col items-center" style={{ height: '60vh', maxHeight: '500px' }}>
+            <div className="flex flex-col items-center" style={{ height: isMobile ? '50vh' : '60vh', maxHeight: isMobile ? '400px' : '500px' }}>
               {(() => {
                 const overlap = calculateOverlap(
                   cardCount,
                   opponentCardHeight, // Use HEIGHT because cards are rotated 90deg
-                  Math.min(windowHeight * 0.6, 500),
-                  isMobile ? 15 : 25
+                  Math.min(windowHeight * (isMobile ? 0.5 : 0.6), isMobile ? 400 : 500),
+                  isMobile ? 12 : 25
                 );
                 return Array.from({ length: cardCount }).map((_, i) => (
-                  <div key={i} style={{ marginTop: i === 0 ? 0 : `${overlap}px` }} className="scale-75 origin-right md:scale-100">
+                  <div key={i} style={{ marginTop: i === 0 ? 0 : `${overlap}px` }} className={`origin-right md:scale-100 ${isMobile ? "scale-60" : "scale-75"}`}>
                     <div className="transform rotate-90">
                       <Card faceUp={false} width={opponentCardWidth} height={opponentCardHeight} />
                     </div>

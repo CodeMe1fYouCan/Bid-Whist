@@ -428,12 +428,14 @@ export default function PlayingPhaseOverlay({
                       : showTrickComplete
                         ? "brightness(0.8)"
                         : "none",
+                    boxShadow: "none",
                     transform: showTrickComplete
                       ? isWinner
                         ? "scale(1.15)"
                         : "scale(0.95)"
                       : pos.transform || "",
-                    zIndex: isWinner ? 10 : 1,
+                    zIndex: isWinner ? 50 : 1, // Increased z-index to be sure
+                    borderRadius: "8px",
                   }}
                 >
                   <Card
