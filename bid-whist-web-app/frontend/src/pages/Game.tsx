@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import useWebSocket from "../hooks/useWebSocket";
-import DealerSelection from "../components/DealerSelection";
 import BiddingPhaseOverlay from "../components/BiddingPhaseOverlay";
 import GameBoard from "../components/GameBoard";
 import DealingAnimation from "../components/DealingAnimation";
@@ -19,7 +18,7 @@ const Game = () => {
   const { roomCode: rawRoomCode } = useParams<{ roomCode: string }>();
   const roomCode = (rawRoomCode || "").toUpperCase();
 
-  const [phase, setPhase] = useState("DEALER_SELECTION");
+  const [phase, setPhase] = useState("BIDDING");
   const [players, setPlayers] = useState<any[]>([]);
   const [handAssignments, setHandAssignments] = useState<any[]>([]);
   const [dealerGuesses, setDealerGuesses] = useState<Record<string, number>>({});
@@ -355,18 +354,7 @@ const Game = () => {
 
     let content = null;
 
-    if (phase === "DEALER_SELECTION") {
-      content = (
-        <DealerSelection
-          handAssignments={handAssignments}
-          dealerGuesses={dealerGuesses}
-          guessInput={guessInput}
-          setGuessInput={setGuessInput}
-          handleGuessSubmit={handleGuessSubmit}
-          currentUserId={currentUserId}
-        />
-      );
-    } else if (phase === "BIDDING") {
+    if (phase === "BIDDING") {
       // BiddingPhaseOverlay handles its own layout/container
       return (
         <BiddingPhaseOverlay

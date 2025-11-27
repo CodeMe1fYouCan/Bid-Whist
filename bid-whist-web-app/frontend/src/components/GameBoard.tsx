@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useState, useRef } from "react";
+import { useDrop } from "react-dnd";
 import Table from "./Table";
-import DealerReveal from "./DealerReveal";
-import DealerSelectionOverlay from "./DealerSelectionOverlay";
+import Card from "./Card";
+import Hand from "./Hand";
+import TrickCenter from "./TrickCenter";
 import BiddingPhaseOverlay from "./BiddingPhaseOverlay";
 import TrumpSelectionOverlay from "./TrumpSelectionOverlay";
 import HandCompleteOverlay from "./HandCompleteOverlay";
+import GameCompleteOverlay from "./GameCompleteOverlay";
 import { useResponsiveCardSize } from "../hooks/useResponsiveCardSize";
 import type {
   CoreGameState,
@@ -354,35 +357,6 @@ export default function GameBoard(props: GameBoardProps) {
         handleDropOnCenter={handleDropOnCenter}
         teamScores={props.teamScores}
       />
-
-      {/* DEALER REVEAL OVERLAY */}
-      {phase === "DEALER_REVEAL" && (() => {
-        const targetNumber = (window as any).dealerRevealData?.targetNumber;
-        const guesses = (window as any).dealerRevealData?.guesses || {};
-        const dealerHandId = (window as any).dealerRevealData?.dealerHandId;
-
-        return (
-          <DealerReveal
-            targetNumber={targetNumber}
-            guesses={guesses}
-            dealerHandId={dealerHandId}
-            handAssignments={handAssignments}
-            currentUserId={currentUserId}
-          />
-        );
-      })()}
-
-      {/* DEALER SELECTION OVERLAY */}
-      {phase === "DEALER_SELECTION" && (
-        <DealerSelectionOverlay
-          handAssignments={handAssignments}
-          currentUserId={currentUserId}
-          dealerGuesses={props.dealerGuesses}
-          guessInput={props.guessInput}
-          setGuessInput={props.setGuessInput}
-          handleGuessSubmit={props.handleGuessSubmit}
-        />
-      )}
 
       {/* BIDDING PHASE OVERLAY */}
       {phase === "BIDDING" && (

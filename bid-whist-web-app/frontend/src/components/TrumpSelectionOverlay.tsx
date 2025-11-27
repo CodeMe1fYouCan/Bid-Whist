@@ -1,6 +1,7 @@
 import React from "react";
 import Card from "./Card";
 import type { TrumpPhaseState } from "../types/gamePhases";
+import { useResponsiveCardSize } from "../hooks/useResponsiveCardSize";
 
 interface TrumpSelectionOverlayProps extends TrumpPhaseState {
   bidWinnerHandId: string;
@@ -16,6 +17,7 @@ export default function TrumpSelectionOverlay({
   currentUserId,
   handleTrumpSelection,
 }: TrumpSelectionOverlayProps) {
+  const { isMobile } = useResponsiveCardSize();
   const bidWinner = handAssignments.find((h: any) => {
     const handId = `${h.playerId}_hand_${h.handIndex}`;
     return handId === bidWinnerHandId;
@@ -31,37 +33,53 @@ export default function TrumpSelectionOverlay({
   ];
 
   return (
-    <div className="absolute inset-0 flex items-center justify-center z-10">
+    <div className={`${isMobile ? "fixed" : "absolute"} inset-0 flex items-center justify-center z-10`}>
       <div
-        className="text-white p-4 md:p-8 lg:p-10 rounded-2xl md:rounded-3xl shadow-2xl max-w-sm md:max-w-3xl lg:max-w-5xl max-h-[80vh] overflow-y-auto border-2 md:border-4 border-white/20"
-        style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "1rem" }}
+        className={`text-white rounded-2xl md:rounded-3xl shadow-2xl border-2 md:border-4 border-white/20 ${isMobile
+            ? "w-[60vw] max-h-[35vh] p-2 overflow-y-auto absolute top-[2vh] left-1/2 -translate-x-1/2"
+            : "p-4 md:p-8 lg:p-10 max-w-sm md:max-w-3xl lg:max-w-5xl max-h-[80vh] overflow-y-auto"
+          }`}
+        style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: isMobile ? "0.85rem" : "1rem" }}
       >
-        <div className="space-y-4 md:space-y-7">
-          <h2 className="text-2xl md:text-3xl lg:text-5xl font-bold text-center" style={{ color: "#ffffff" }}>
-            Trump Selection
-          </h2>
+        <div className={isMobile ? "space-y-1.5" : "space-y-4 md:space-y-7"}>
+          {/* Title - hide on mobile */}
+          {!isMobile && (
+            <h2 className="text-2xl md:text-3xl lg:text-5xl font-bold text-center" style={{ color: "#ffffff" }}>
+              Trump Selection
+            </h2>
+          )}
 
-          {/* Bid Winner Info */}
-          <div className="text-center">
-            <div className="text-base md:text-xl lg:text-2xl" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
-              Bid Winner:
+          {/* Compact header matching bidding overlay */}
+          {isMobile ? (
+            <div className="flex items-center justify-center gap-2 text-xs flex-wrap">
+              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>Winner:</span>
+              <span className="font-bold text-yellow-400">{bidWinner?.playerName}</span>
+              {isMyTurn && <span className="text-green-400 font-bold">✓ Your Turn</span>}
             </div>
-            <div className="text-2xl md:text-3xl lg:text-4xl font-bold mt-2" style={{ color: "#fbbf24" }}>
-              {bidWinner?.playerName} - Hand {parseInt(bidWinner?.handIndex || "0") + 1}
-              {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
+          ) : (
+            <div className="text-center">
+              <div className="text-base md:text-xl lg:text-2xl" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
+                Bid Winner:
+              </div>
+              <div className="text-2xl md:text-3xl lg:text-4xl font-bold mt-2" style={{ color: "#fbbf24" }}>
+                {bidWinner?.playerName} - Hand {parseInt(bidWinner?.handIndex || "0") + 1}
+                {isMyTurn && <span className="ml-2">(Your Turn!)</span>}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Trump Options */}
           {isMyTurn ? (
             <div>
-              <div
-                className="text-center text-base md:text-xl lg:text-2xl mb-4 md:mb-6 font-semibold"
-                style={{ color: "rgba(255, 255, 255, 0.95)" }}
-              >
-                Select Trump Suit:
-              </div>
-              <div className="flex justify-center gap-3 md:gap-6 flex-wrap">
+              {!isMobile && (
+                <div
+                  className="text-center text-base md:text-xl lg:text-2xl mb-4 md:mb-6 font-semibold"
+                  style={{ color: "rgba(255, 255, 255, 0.95)" }}
+                >
+                  Select Trump Suit:
+                </div>
+              )}
+              <div className={`flex justify-center ${isMobile ? "gap-1.5" : "gap-3 md:gap-6"} flex-wrap`}>
                 {trumpOptions.map((option) => (
                   <div
                     key={option.value}
@@ -81,33 +99,35 @@ export default function TrumpSelectionOverlay({
                       suit={option.suit}
                       rank={option.rank}
                       faceUp={true}
-                      width={80}
-                      height={120}
-                      className="md:w-[100px] md:h-[150px] lg:w-[120px] lg:h-[180px]"
+                      width={isMobile ? 40 : 80}
+                      height={isMobile ? 60 : 120}
+                      className={isMobile ? "" : "md:w-[100px] md:h-[150px] lg:w-[120px] lg:h-[180px]"}
                     />
                     <div
-                      className="text-center mt-2 text-xs md:text-sm lg:text-base font-bold"
+                      className={`text-center font-bold ${isMobile ? "text-[0.6rem] mt-0.5" : "text-xs md:text-sm lg:text-base mt-2"}`}
                       style={{ color: "#ffffff" }}
                     >
                       {option.value === "no-trump"
-                        ? "No Trump"
-                        : option.value.charAt(0).toUpperCase() + option.value.slice(1)}
+                        ? isMobile ? "No" : "No Trump"
+                        : option.value.charAt(0).toUpperCase() + (isMobile ? "" : option.value.slice(1))}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="text-center py-4 md:py-8">
+            <div className={`text-center ${isMobile ? "py-1" : "py-4 md:py-8"}`}>
               <div
-                className="text-xl md:text-2xl lg:text-3xl font-semibold mb-2 md:mb-3"
+                className={`font-semibold ${isMobile ? "text-xs" : "text-xl md:text-2xl lg:text-3xl mb-2 md:mb-3"}`}
                 style={{ color: "rgba(255, 255, 255, 0.95)" }}
               >
-                Waiting for trump selection...
+                {isMobile ? `Waiting for ${bidWinner?.playerName}...` : "Waiting for trump selection..."}
               </div>
-              <div className="text-base md:text-lg lg:text-xl" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                {bidWinner?.playerName} is choosing the trump suit
-              </div>
+              {!isMobile && (
+                <div className="text-base md:text-lg lg:text-xl" style={{ color: "rgba(255, 255, 255, 0.7)" }}>
+                  {bidWinner?.playerName} is choosing the trump suit
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -149,7 +149,7 @@ suspend fun handleToggleReady(
     }
     val teamsBalanced = usHands == 2 && themHands == 2
 
-    if (allReady && totalHands == 4 && teamsBalanced) {
+    if (allReady && totalHands == 4 && teamsBalanced && room.gameState == null) {
         println("✓ All conditions met! Starting game...")
         startGame(room, objectMapper)
     }
@@ -174,15 +174,6 @@ private suspend fun sendGameStateToPlayer(
             )
 
     when (phase) {
-        "DEALER_SELECTION" -> {
-            baseState["dealerGuesses"] = room.gameState?.get("dealerGuesses")
-            baseState["message"] =
-                    "Each hand must guess a number 1-100 to determine the first dealer!"
-        }
-        "DEALER_REVEAL" -> {
-            baseState["dealerGuesses"] = room.gameState?.get("dealerGuesses")
-            baseState["dealerIndex"] = room.gameState?.get("dealerIndex")
-        }
         "DEALING" -> {
             baseState["playerHands"] = room.gameState?.get("playerHands")
             baseState["dealerIndex"] = room.gameState?.get("dealerIndex")

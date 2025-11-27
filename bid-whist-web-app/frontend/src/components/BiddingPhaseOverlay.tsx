@@ -1,5 +1,6 @@
 import React from "react";
 import type { BiddingPhaseState } from "../types/gamePhases";
+import { useResponsiveCardSize } from "../hooks/useResponsiveCardSize";
 
 interface BiddingPhaseOverlayProps extends Omit<BiddingPhaseState, 'bidWinnerHandId' | 'winningBid'> {
   handAssignments: any[];
@@ -24,6 +25,7 @@ export default function BiddingPhaseOverlay({
   pointsToWin = 11,
 }: BiddingPhaseOverlayProps) {
   const [bidInput, setBidInput] = React.useState<string>("");
+  const { isMobile } = useResponsiveCardSize();
 
   const currentBidder = handAssignments[currentBidderIndex];
   const currentHandId = `${currentBidder?.playerId}_hand_${currentBidder?.handIndex}`;
@@ -81,92 +83,72 @@ export default function BiddingPhaseOverlay({
         className="fixed z-50 top-[2vh] left-1/2 -translate-x-1/2 text-white p-3 md:p-8 md:text-lg lg:p-10 rounded-2xl md:rounded-3xl shadow-2xl w-[60vw] md:w-auto md:max-w-2xl lg:max-w-3xl max-h-[50vh] md:max-h-[85vh] overflow-y-auto border-2 md:border-4 border-white/20 pointer-events-auto md:relative md:top-auto md:left-auto md:translate-x-0 md:flex md:items-center md:justify-center md:inset-0 md:bg-transparent md:pointer-events-none"
         style={{ backgroundColor: "rgba(17, 24, 39, 0.97)", fontSize: "0.85rem" }}
       >
-        <div className="space-y-2 md:space-y-6">
-          <h2 className="text-xl md:text-3xl lg:text-4xl font-bold text-center" style={{ color: "#ffffff" }}>
-            Bidding Phase
-          </h2>
+        <div className={isMobile ? "space-y-2" : "space-y-2 md:space-y-4"}>
+          {/* Title - hide on mobile to save space */}
+          {!isMobile && (
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center" style={{ color: "#ffffff" }}>
+              Bidding Phase
+            </h2>
+          )}
 
-          {/* Current Bidder */}
-          <div className="text-center">
-            <div className="text-sm md:text-xl" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
-              Current Bidder:
+          {/* Compact header: Current Bidder | Highest Bid */}
+          <div className={`flex items-center justify-center gap-3 md:gap-6 ${isMobile ? "text-xs" : "text-sm md:text-base"}`}>
+            <div className="flex items-center gap-1.5">
+              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>Current:</span>
+              <span
+                className="font-bold"
+                style={{
+                  color: currentBidder?.team === fayeTeam ? "#c4b5fd" : "#60a5fa",
+                }}
+              >
+                {currentBidder?.playerName?.toLowerCase() === "faye" && "💜 "}
+                {currentBidder?.playerName}
+              </span>
             </div>
-            <div
-              className="text-lg md:text-2xl lg:text-3xl font-bold"
-              style={{
-                color: currentBidder?.team === fayeTeam ? "#c4b5fd" : "#60a5fa",
-              }}
-            >
-              {currentBidder?.playerName?.toLowerCase() === "faye" && "💜 "}
-              {currentBidder?.playerName} - Hand {parseInt(currentBidder?.handIndex) + 1}
-            </div>
-          </div>
-
-          {/* Highest Bid */}
-          <div className="text-center">
-            <div className="text-sm md:text-xl" style={{ color: "rgba(255, 255, 255, 0.9)" }}>
-              Highest Bid:
-            </div>
-            <div className="text-lg md:text-2xl lg:text-3xl font-bold text-yellow-400">
-              {highestBid > 0 ? highestBid : "None"}
+            <div className="text-white/30">|</div>
+            <div className="flex items-center gap-1.5">
+              <span style={{ color: "rgba(255, 255, 255, 0.7)" }}>Highest:</span>
+              <span className="font-bold text-yellow-400">
+                {highestBid > 0 ? highestBid : "None"}
+              </span>
             </div>
           </div>
 
           {/* Bidding Input (only show if it's my turn) */}
           {isMyTurn && (
             <div className="bg-yellow-900/20 border-2 border-yellow-400 rounded-lg p-3 md:p-6">
-              <div className="space-y-2 md:space-y-4">
-                <div className="flex items-center gap-2 md:gap-4">
-                  <label className="text-sm md:text-lg font-bold" style={{ color: "#ffffff" }}>
-                    Your Bid:
-                  </label>
-                  <input
-                    type="number"
-                    min={minBid}
-                    max="7"
-                    value={bidInput}
-                    onChange={(e) => setBidInput(e.target.value)}
-                    className="flex-1 px-3 py-1.5 md:px-4 md:py-2 bg-gray-800 border-2 border-gray-600 rounded text-white text-sm md:text-lg font-bold focus:border-yellow-400 focus:outline-none"
-                    placeholder={`Min: ${minBid}`}
-                  />
+              <div className="space-y-3">
+                <div className={`text-center font-bold text-white ${isMobile ? "text-sm mb-2" : "text-base md:text-lg mb-3"}`}>
+                  Select your bid:
                 </div>
-                <div className="flex gap-2 md:gap-4">
-                  <button
-                    onClick={() => {
-                      console.log("Bid button clicked", { currentHandId, bidValue });
-                      if (handleBid) {
-                        handleBid(currentHandId, bidValue);
-                      } else {
-                        console.error("handleBid is undefined");
-                      }
-                    }}
-                    disabled={!canBid}
-                    className="px-4 md:px-6 py-1.5 md:py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-sm md:text-lg touch-target"
-                  >
-                    Bid
-                  </button>
-                  <button
-                    onClick={() => {
-                      console.log("Pass button clicked", { currentHandId });
-                      if (handleBid) {
-                        handleBid(currentHandId, "pass");
-                      } else {
-                        console.error("handleBid is undefined");
-                      }
-                    }}
-                    disabled={!canPass}
-                    className="px-4 md:px-6 py-1.5 md:py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded font-bold text-sm md:text-lg touch-target"
-                  >
-                    Pass
-                  </button>
+                <div className={`grid grid-cols-7 ${isMobile ? "gap-1.5" : "gap-2"}`}>
+                  {[1, 2, 3, 4, 5, 6, 7].map((amt) => (
+                    <button
+                      key={amt}
+                      onClick={() => handleBid && handleBid(currentHandId, amt)}
+                      disabled={amt < minBid}
+                      className={`rounded-lg font-bold shadow-lg transition-all active:scale-95 ${amt < minBid
+                        ? "bg-gray-700 text-gray-500 cursor-not-allowed opacity-50"
+                        : "bg-blue-600 text-white hover:bg-blue-500 border-b-4 border-blue-800 active:border-b-0 active:translate-y-1"
+                        } ${isMobile ? "py-2.5 text-base" : "py-3 md:py-4 text-lg md:text-xl"}`}
+                    >
+                      {amt}
+                    </button>
+                  ))}
                 </div>
-                {bidInput && !canBid && (
-                  <div className="text-red-400 text-xs md:text-sm font-semibold">
-                    {bidValue < minBid
-                      ? `Bid must be at least ${minBid}`
-                      : bidValue > 7
-                        ? "Bid cannot exceed 7"
-                        : "Invalid bid"}
+                <button
+                  onClick={() => handleBid && handleBid(currentHandId, "pass")}
+                  disabled={!canPass}
+                  className={`w-full rounded-lg font-bold shadow-lg transition-all active:scale-95 ${!canPass
+                    ? "bg-gray-700 text-gray-500 cursor-not-allowed opacity-50"
+                    : "bg-red-600 text-white hover:bg-red-500 border-b-4 border-red-800 active:border-b-0 active:translate-y-1"
+                    } ${isMobile ? "py-3 text-lg" : "py-4 text-xl md:text-2xl"}`}
+                >
+                  PASS
+                </button>
+                {!canPass && (
+                  <div className={`text-center text-red-400 font-semibold ${isMobile ? "text-xs" : "text-sm"}`}>
+                    Cannot pass (everyone else passed)
                   </div>
                 )}
               </div>
@@ -175,13 +157,13 @@ export default function BiddingPhaseOverlay({
 
           {/* Bid History - Compact on mobile */}
           <div>
-            <h3 className="text-base md:text-xl font-bold mb-1 md:mb-3" style={{ color: "#ffffff" }}>
+            <h3 className={`font-bold mb-1 md:mb-3 ${isMobile ? "text-sm" : "text-base md:text-xl"}`} style={{ color: "#ffffff" }}>
               Bid History
             </h3>
-            <div className="space-y-1 md:space-y-2 max-h-20 md:max-h-64 overflow-y-auto">
+            <div className="flex flex-wrap gap-2 max-h-20 md:max-h-32 overflow-y-auto">
               {bids.length === 0 ? (
                 <div
-                  className="text-center py-2 md:py-4 text-xs md:text-base"
+                  className={`text-center w-full ${isMobile ? "py-1 text-xs" : "py-2 md:py-4 text-xs md:text-base"}`}
                   style={{ color: "rgba(255, 255, 255, 0.7)" }}
                 >
                   No bids yet
@@ -193,17 +175,20 @@ export default function BiddingPhaseOverlay({
                   return (
                     <div
                       key={idx}
-                      className="p-1.5 md:p-3 bg-white/10 rounded border border-white/30 text-xs md:text-base"
+                      className={isMobile
+                        ? "px-2 py-1 bg-white/10 rounded border border-white/30 text-xs whitespace-nowrap"
+                        : "px-3 py-1.5 md:px-4 md:py-2 bg-white/10 rounded border border-white/30 text-xs md:text-base whitespace-nowrap"
+                      }
                     >
                       <span className="font-bold" style={{ color: handColor }}>
                         {hand?.playerName?.toLowerCase() === "faye" && "💜 "}
-                        {hand?.playerName} - Hand {parseInt(hand?.handIndex) + 1}:
+                        {hand?.playerName}:
                       </span>
                       <span
-                        className="ml-2"
+                        className="ml-1"
                         style={{ color: bid.amount === "pass" ? "#f87171" : "#4ade80" }}
                       >
-                        {bid.amount === "pass" ? "Passed" : `Bid ${bid.amount}`}
+                        {bid.amount === "pass" ? "Pass" : bid.amount}
                       </span>
                     </div>
                   );

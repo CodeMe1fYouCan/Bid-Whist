@@ -76,8 +76,11 @@ const Room: React.FC = () => {
         setHands(data.hands);
         break;
 
-      case "DEALER_SELECTION":
       case "GAME_STARTED":
+      case "BIDDING":
+      case "DEALING":
+      case "BIDDING_PHASE":
+      case "DEALING_PHASE":
         console.log("🎮 Game starting! Navigating to game page...");
         // Save current player data to sessionStorage for game page
         if (currentUser) {
