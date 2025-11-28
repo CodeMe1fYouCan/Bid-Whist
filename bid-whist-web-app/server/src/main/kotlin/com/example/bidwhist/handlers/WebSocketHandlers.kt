@@ -152,6 +152,8 @@ suspend fun handleToggleReady(
     if (allReady && totalHands == 4 && teamsBalanced && room.gameState == null) {
         println("✓ All conditions met! Starting game...")
         startGame(room, objectMapper)
+        // Broadcast the game state to all players so they navigate to the game page
+        broadcastGameState(room, objectMapper)
     }
 }
 

@@ -8,7 +8,7 @@ interface CardProps {
     height?: number;
     onClick?: () => void;
     isSelected?: boolean;
-    isPlayable?: boolean;
+    className?: string;
 }
 
 const Card: React.FC<CardProps> = ({
@@ -20,9 +20,10 @@ const Card: React.FC<CardProps> = ({
     onClick,
     isSelected = false,
     isPlayable = true,
+    className = "",
 }) => {
     const [imageError, setImageError] = useState(false);
-    
+
     // Special handling for no-trump card
     const isNoTrump = rank === 'NO_TRUMP';
     const cardKey = isNoTrump ? 'no_trump' : `${rank}_of_${suit}`;
@@ -55,8 +56,8 @@ const Card: React.FC<CardProps> = ({
     const renderFallbackCard = () => (
         <div
             style={{
-                width,
-                height,
+                width: '100%',
+                height: '100%',
                 backgroundColor: faceUp ? '#f5f1e3' : '#1e40af',
                 borderRadius: '8px',
                 border: '2px solid #333',
@@ -134,15 +135,16 @@ const Card: React.FC<CardProps> = ({
 
     return (
         <div
-            className={`transform transition-all duration-300 ${
-                isSelected
+            className={`transform transition-all duration-300 ${isSelected
                     ? 'translate-y-[-10px] scale-105'
                     : isPlayable && onClick
-                      ? 'hover:translate-y-[-8px] hover:scale-105'
-                      : ''
-            }`}
+                        ? 'hover:translate-y-[-8px] hover:scale-105'
+                        : ''
+                } ${className}`}
             onClick={onClick}
             style={{
+                width,
+                height,
                 cursor: onClick ? 'pointer' : 'default',
             }}
         >
@@ -152,8 +154,8 @@ const Card: React.FC<CardProps> = ({
                     alt={cardKey}
                     onError={() => setImageError(true)}
                     style={{
-                        width,
-                        height,
+                        width: '100%',
+                        height: '100%',
                         borderRadius: '8px',
                         boxShadow: isSelected
                             ? '0 8px 16px rgba(0,0,0,0.4)'

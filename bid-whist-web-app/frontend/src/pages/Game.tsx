@@ -350,47 +350,22 @@ const Game = () => {
 
   // Render phase-specific overlay
   const renderPhaseOverlay = () => {
-    if (phase === "PLAYING") return null;
-
-    let content = null;
-
-    if (phase === "BIDDING") {
-      // BiddingPhaseOverlay handles its own layout/container
+    if (phase === "DEALING") {
       return (
-        <BiddingPhaseOverlay
-          handAssignments={handAssignments}
-          currentBidderIndex={currentBidderIndex}
-          bids={bids}
-          highestBid={highestBid}
-          currentUserId={currentUserId}
-          handleBid={handleBid}
-          dealerIndex={dealerIndex}
-          teamScores={teamScores}
-        />
+        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ pointerEvents: 'none' }}>
+          <motion.div
+            className="bg-transparent"
+            style={{ pointerEvents: 'auto' }}
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.92 }}
+          >
+            <DealingAnimation dealerIndex={dealerIndex} />
+          </motion.div>
+        </div>
       );
-    } else if (phase === "DEALING") {
-      content = <DealingAnimation dealerIndex={dealerIndex} />;
-    } else {
-      content = <div className="text-2xl text-white">{phase}</div>;
     }
-
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50" style={{ pointerEvents: 'none' }}>
-        <motion.div
-          className="bg-black text-white p-8 rounded-3xl shadow-2xl max-w-4xl max-h-[90vh] overflow-y-auto"
-          style={{
-            pointerEvents: 'auto',
-            backgroundColor: phase === "DEALING" ? 'transparent' : 'rgba(0, 0, 0, 0.95)', // Transparent bg for animation
-            boxShadow: phase === "DEALING" ? 'none' : undefined // No shadow for animation container
-          }}
-          initial={{ opacity: 0, scale: 0.92 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.92 }}
-        >
-          {content}
-        </motion.div>
-      </div>
-    );
+    return null;
   };
 
   return (
